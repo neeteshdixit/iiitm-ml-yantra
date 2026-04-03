@@ -1,4 +1,4 @@
-# ML Yantra
+ # ML Yantra
 
 ML Yantra is a web-based, no-code machine learning platform and interactive learning academy that helps users prepare data, train models, and learn ML concepts without writing code. The platform combines an intelligent AI assistant, a visual data cleaning workspace, an end-to-end model training flow, and a gamified ML Academy for hands-on learning.
 
