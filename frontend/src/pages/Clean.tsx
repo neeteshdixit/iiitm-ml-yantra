@@ -875,10 +875,14 @@ function AIAssistantPanel({ stats, operationLog }: { stats: any; operationLog: O
                                 <h4 className="text-[10px] font-black uppercase tracking-wider text-primary">Quick Insight</h4>
                             </div>
                             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                                {stats
-                                    ? `${stats.total_rows} rows × ${stats.total_columns} cols. ${stats.numeric_columns?.length || 0} numeric, ${stats.categorical_columns?.length || 0} categorical.${stats.null_count > 0 ? ` ⚠️ ${stats.null_count} nulls found.` : ' ✅ No nulls!'}${stats.duplicate_count > 0 ? ` ${stats.duplicate_count} duplicates.` : ''}`
-                                    : 'Upload a dataset to get AI-powered insights.'
-                                }
+                                {stats ? (() => {
+                                    const colTypes = Object.values(stats.column_types || {}) as string[];
+                                    const numCount = colTypes.filter(t => ['int64', 'float64', 'int32', 'float32'].includes(t)).length;
+                                    const catCount = colTypes.length - numCount;
+                                    const totalNulls = Object.values(stats.null_counts || {}).reduce((a: any, b: any) => a + (b as number), 0) as number;
+                                    const dupes = stats.duplicate_rows || 0;
+                                    return `${stats.total_rows} rows × ${stats.total_columns} cols. ${numCount} numeric, ${catCount} categorical. ${totalNulls > 0 ? `⚠️ ${totalNulls} nulls found.` : '✅ No nulls!'} ${dupes > 0 ? `${dupes} duplicates.` : ''}`.trim()
+                                })() : 'Upload a dataset to get AI-powered insights.'}
                             </p>
                         </div>
 
@@ -1040,8 +1044,14 @@ export default function Clean() {
     const [viewLabel, setViewLabel] = useState('Data Preview')
     const [correlationData, setCorrelationData] = useState<{ columns: string[]; matrix: number[][] } | null>(null)
     const [allDistributions, setAllDistributions] = useState<Record<string, any>>({})
-    const [distLoading, setDistLoading] = useState(false)
     const [scatterData, setScatterData] = useState<{ pairs: { x_col: string; y_col: string; x: number[]; y: number[] }[]; columns: string[] } | null>(null)
+    
+    // Interactive Visualization State
+    const [vizMode, setVizMode] = useState<string>('none') // 'none', 'full', 'overview', 'distribution', 'heatmap', 'scatter'
+    const [scatterX, setScatterX] = useState<string>('')
+    const [scatterY, setScatterY] = useState<string>('')
+    const [selectedDistributions, setSelectedDistributions] = useState<string[]>([])
+    const [distLoading, setDistLoading] = useState(false)
 
     // Multi-sheet state
     const [isMultiSheet, setIsMultiSheet] = useState(false)
@@ -1262,6 +1272,10 @@ export default function Clean() {
     }
 
     const handleFileSelect = async (file: File) => {
+        if (file.size > 100 * 1024 * 1024) {
+            toast.error('File is too large! Please upload a dataset under 100MB.')
+            return
+        }
         setLoading(true)
         try {
             const uploadResponse = await apiClient.uploadFile(file)
@@ -1784,22 +1798,65 @@ export default function Clean() {
             {/* Visualize View */}
             {sessionId && stats && activeOp === 'visualize' && (
                 <div className="px-6 pt-6 space-y-6 pb-6">
-                    <h2 className="text-lg font-bold">Data Visualization</h2>
+                    <div className="flex items-center justify-between mb-2">
+                        <div>
+                            <h2 className="text-lg font-bold">Data Visualization Dashboard</h2>
+                            <p className="text-xs text-slate-500">Pick exactly what you want to chart to keep things fast and clean.</p>
+                        </div>
+                        {vizMode !== 'none' && (
+                            <button onClick={() => setVizMode('none')} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200 transition-all flex items-center gap-1.5">
+                                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                                Change Chart Type
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Chart Picker Menu */}
+                    {vizMode === 'none' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <button onClick={() => setVizMode('overview')} className="p-5 border border-slate-200 hover:border-primary/50 bg-white rounded-xl text-left transition-all hover:shadow-lg group">
+                                <span className="material-symbols-outlined text-4xl text-blue-500 mb-3 group-hover:scale-110 transition-transform">dashboard</span>
+                                <h4 className="font-bold text-slate-800">Dataset Overview & Nulls</h4>
+                                <p className="text-xs text-slate-500 mt-1">High-level statistics, column limits, and null distributions across the whole dataset.</p>
+                            </button>
+                            <button onClick={() => setVizMode('distribution')} className="p-5 border border-slate-200 hover:border-primary/50 bg-white rounded-xl text-left transition-all hover:shadow-lg group">
+                                <span className="material-symbols-outlined text-4xl text-indigo-500 mb-3 group-hover:scale-110 transition-transform">bar_chart</span>
+                                <h4 className="font-bold text-slate-800">Feature Distributions</h4>
+                                <p className="text-xs text-slate-500 mt-1">Select specific columns to view their underlying shape, bells, and bars.</p>
+                            </button>
+                            <button onClick={() => { setVizMode('scatter'); setScatterX(''); setScatterY(''); }} className="p-5 border border-slate-200 hover:border-primary/50 bg-white rounded-xl text-left transition-all hover:shadow-lg group">
+                                <span className="material-symbols-outlined text-4xl text-teal-500 mb-3 group-hover:scale-110 transition-transform">scatter_plot</span>
+                                <h4 className="font-bold text-slate-800">Custom Scatter Plot</h4>
+                                <p className="text-xs text-slate-500 mt-1">Explicitly select any X and Y columns to plot their direct relationship.</p>
+                            </button>
+                            <button onClick={() => setVizMode('heatmap')} className="p-5 border border-slate-200 hover:border-primary/50 bg-white rounded-xl text-left transition-all hover:shadow-lg group">
+                                <span className="material-symbols-outlined text-4xl text-purple-500 mb-3 group-hover:scale-110 transition-transform">grid_on</span>
+                                <h4 className="font-bold text-slate-800">Correlation Heatmap</h4>
+                                <p className="text-xs text-slate-500 mt-1">View the correlation matrix for all numeric metrics in your dataset.</p>
+                            </button>
+                            <button onClick={() => setVizMode('full')} className="p-5 border border-slate-200 hover:border-primary/50 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl text-left transition-all hover:shadow-lg group lg:col-span-2">
+                                <span className="material-symbols-outlined text-4xl text-slate-600 mb-3 group-hover:scale-110 transition-transform">auto_awesome_mosaic</span>
+                                <h4 className="font-bold text-slate-800">Generate Full Report</h4>
+                                <p className="text-xs text-slate-500 mt-1">Execute the heavy calculation render mode. Pulls up every single chart automatically.</p>
+                            </button>
+                        </div>
+                    )}
 
                     {/* Correlation Heatmap */}
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="material-symbols-outlined text-purple-500">grid_on</span>
-                            <h3 className="text-sm font-bold">Correlation Heatmap</h3>
-                            <span className="text-xs text-slate-400 ml-auto">Pearson correlation coefficients</span>
-                        </div>
-                        {correlationData && correlationData.columns.length >= 2 ? (
-                            <>
-                                <div className="overflow-x-auto custom-scrollbar">
-                                    <table className="text-xs border-collapse">
-                                        <thead>
-                                            <tr>
-                                                <th className="p-1.5 text-right"></th>
+                    {(vizMode === 'full' || vizMode === 'heatmap') && (
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300">
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="material-symbols-outlined text-purple-500">grid_on</span>
+                                <h3 className="text-sm font-bold">Correlation Heatmap</h3>
+                                <span className="text-xs text-slate-400 ml-auto">Pearson correlation coefficients</span>
+                            </div>
+                            {correlationData && correlationData.columns.length >= 2 ? (
+                                <>
+                                    <div className="overflow-x-auto custom-scrollbar">
+                                        <table className="text-xs border-collapse">
+                                            <thead>
+                                                <tr>
+                                                    <th className="p-1.5 text-right"></th>
                                                 {correlationData.columns.map(col => (
                                                     <th key={col} className="p-1.5 font-medium text-slate-500 min-w-[60px] text-center" style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)', maxHeight: '100px' }}>{col.length > 12 ? col.slice(0, 12) + '...' : col}</th>
                                                 ))}
@@ -1848,19 +1905,39 @@ export default function Clean() {
                             </div>
                         )}
                     </div>
+                    )}
 
                     {/* Scatter Plots */}
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="material-symbols-outlined text-teal-500">scatter_plot</span>
-                            <h3 className="text-sm font-bold">Scatter Plots</h3>
-                            {scatterData && scatterData.pairs.length > 0 && (
-                                <span className="text-xs text-slate-400 ml-auto">{scatterData.pairs.length} column pair{scatterData.pairs.length > 1 ? 's' : ''}</span>
+                    {(vizMode === 'full' || vizMode === 'scatter') && (
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300">
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="material-symbols-outlined text-teal-500">scatter_plot</span>
+                                <h3 className="text-sm font-bold">Scatter Plots</h3>
+                                {vizMode === 'full' && scatterData && scatterData.pairs.length > 0 && (
+                                    <span className="text-xs text-slate-400 ml-auto">{scatterData.pairs.length} column pair{scatterData.pairs.length > 1 ? 's' : ''}</span>
+                                )}
+                            </div>
+                            {vizMode === 'scatter' && scatterData && (
+                                <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg flex items-end gap-4">
+                                    <div className="flex-1">
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">X Axis Column</label>
+                                        <select value={scatterX} onChange={e => setScatterX(e.target.value)} className="w-full text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-primary">
+                                            <option value="">Select numeric X...</option>
+                                            {scatterData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Y Axis Column</label>
+                                        <select value={scatterY} onChange={e => setScatterY(e.target.value)} className="w-full text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-primary">
+                                            <option value="">Select numeric Y...</option>
+                                            {scatterData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
                             )}
-                        </div>
                         {scatterData && scatterData.pairs.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {scatterData.pairs.map((pair, idx) => {
+                                {scatterData.pairs.filter(pair => vizMode === 'full' || (pair.x_col === scatterX && pair.y_col === scatterY) || (pair.x_col === scatterY && pair.y_col === scatterX)).map((pair, idx) => {
                                     const xMin = Math.min(...pair.x)
                                     const xMax = Math.max(...pair.x)
                                     const yMin = Math.min(...pair.y)
@@ -1868,9 +1945,9 @@ export default function Clean() {
                                     const xRange = xMax - xMin || 1
                                     const yRange = yMax - yMin || 1
                                     return (
-                                        <div key={idx} className="border border-slate-100 dark:border-slate-800 rounded-lg p-3">
-                                            <div className="text-[10px] text-slate-500 mb-2 font-medium">{pair.x_col} vs {pair.y_col}</div>
-                                            <div className="relative bg-slate-50 dark:bg-slate-800/50 rounded" style={{ height: '160px' }}>
+                                        <div key={idx} className={`${vizMode === 'scatter' ? 'md:col-span-2 max-w-2xl mx-auto w-full' : ''} border border-slate-100 dark:border-slate-800 rounded-lg p-4 bg-white shadow-sm`}>
+                                            <div className="text-xs text-slate-600 mb-3 font-bold text-center">{pair.x_col} vs {pair.y_col}</div>
+                                            <div className="relative bg-slate-50 dark:bg-slate-800/50 rounded" style={{ height: vizMode === 'scatter' ? '300px' : '160px' }}>
                                                 <div className="absolute inset-0 border-l border-b border-slate-200 dark:border-slate-700 rounded"></div>
                                                 <div className="absolute left-1/4 top-0 bottom-0 border-l border-dashed border-slate-200 dark:border-slate-700"></div>
                                                 <div className="absolute left-1/2 top-0 bottom-0 border-l border-dashed border-slate-200 dark:border-slate-700"></div>
@@ -1882,18 +1959,23 @@ export default function Clean() {
                                                     {pair.x.map((xVal, i) => {
                                                         const cx = ((xVal - xMin) / xRange) * 92 + 4
                                                         const cy = 96 - ((pair.y[i] - yMin) / yRange) * 92
-                                                        return <circle key={i} cx={cx} cy={cy} r="1.2" className="fill-blue-500 opacity-60"><title>{pair.x_col}: {xVal.toFixed(2)}, {pair.y_col}: {pair.y[i].toFixed(2)}</title></circle>
+                                                        return <circle key={i} cx={cx} cy={cy} r={vizMode === 'scatter' ? "1.5" : "1.2"} className="fill-teal-500 opacity-60"><title>{pair.x_col}: {xVal.toFixed(2)}, {pair.y_col}: {pair.y[i].toFixed(2)}</title></circle>
                                                     })}
                                                 </svg>
                                             </div>
-                                            <div className="flex justify-between text-[9px] text-slate-400 mt-1">
+                                            <div className="flex justify-between text-[10px] text-slate-400 mt-2 px-1">
                                                 <span>{xMin.toFixed(1)}</span>
-                                                <span className="text-[10px] font-medium text-slate-500">{pair.x_col}</span>
+                                                <span className="font-bold text-slate-500">{pair.x_col}</span>
                                                 <span>{xMax.toFixed(1)}</span>
                                             </div>
                                         </div>
                                     )
                                 })}
+                                {vizMode === 'scatter' && scatterX && scatterY && scatterData.pairs.filter(pair => (pair.x_col === scatterX && pair.y_col === scatterY) || (pair.x_col === scatterY && pair.y_col === scatterX)).length === 0 && (
+                                    <div className="md:col-span-2 text-center py-8 text-slate-400">
+                                        Found no intersecting chart points for these columns limits.
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="text-center py-8 text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
@@ -1904,18 +1986,33 @@ export default function Clean() {
                             </div>
                         )}
                     </div>
+                    )}
 
                     {/* All Column Distributions */}
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+                    {(vizMode === 'full' || vizMode === 'distribution') && (
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300">
                         <div className="flex items-center gap-2 mb-4">
                             <span className="material-symbols-outlined text-indigo-500">bar_chart</span>
                             <h3 className="text-sm font-bold">Value Distributions</h3>
                             {distLoading && <span className="text-xs text-slate-400 ml-auto animate-pulse">Loading distributions...</span>}
                         </div>
+                        {vizMode === 'distribution' && Object.keys(allDistributions).length > 0 && (
+                            <div className="mb-6">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Select Columns to Visualize</label>
+                                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                                    {Object.keys(allDistributions).map(col => (
+                                        <label key={col} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all text-xs font-medium ${selectedDistributions.includes(col) ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'border-slate-200 hover:bg-slate-50 text-slate-600'}`}>
+                                            <input type="checkbox" className="accent-indigo-500 size-3" checked={selectedDistributions.includes(col)} onChange={() => setSelectedDistributions(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col])} />
+                                            {col}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         {Object.keys(allDistributions).length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {Object.entries(allDistributions).map(([col, dist]: [string, any]) => (
-                                    <div key={col} className="border border-slate-100 dark:border-slate-800 rounded-lg p-3">
+                                {Object.entries(allDistributions).filter(([col]) => vizMode === 'full' || selectedDistributions.includes(col)).map(([col, dist]: [string, any]) => (
+                                    <div key={col} className="border border-slate-100 dark:border-slate-800 rounded-lg p-3 shadow-sm">
                                         <div className="flex items-center justify-between mb-2">
                                             <h4 className="text-xs font-bold">{col}</h4>
                                             <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-slate-500">{dist.type}</span>
@@ -1977,10 +2074,17 @@ export default function Clean() {
                                 </div>
                             )
                         )}
+                        {vizMode === 'distribution' && selectedDistributions.length === 0 && (
+                            <div className="text-center py-6 text-slate-400 bg-slate-50 rounded-lg">
+                                Select features above to view their visual distributions.
+                            </div>
+                        )}
                     </div>
+                    )}
 
                     {/* Null Distribution */}
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+                    {(vizMode === 'full' || vizMode === 'overview') && (
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300 delay-75">
                         <div className="flex items-center gap-2 mb-4">
                             <span className="material-symbols-outlined text-amber-500">warning</span>
                             <h3 className="text-sm font-bold">Null Distribution by Column</h3>
@@ -2002,9 +2106,11 @@ export default function Clean() {
                                 })}
                         </div>
                     </div>
+                    )}
 
                     {/* Column Type Distribution */}
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+                    {(vizMode === 'full' || vizMode === 'overview') && (
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300 delay-150">
                         <div className="flex items-center gap-2 mb-4">
                             <span className="material-symbols-outlined text-blue-500">donut_large</span>
                             <h3 className="text-sm font-bold">Column Type Distribution</h3>
@@ -2035,10 +2141,11 @@ export default function Clean() {
                             )
                         })()}
                     </div>
+                    )}
 
                     {/* Numeric Statistics */}
-                    {stats.column_types && Object.entries(stats.column_types as Record<string, string>).some(([, dtype]) => ['int64', 'float64', 'int32', 'float32'].includes(dtype)) && (
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+                    {(vizMode === 'full' || vizMode === 'overview') && stats.column_types && Object.entries(stats.column_types as Record<string, string>).some(([, dtype]) => ['int64', 'float64', 'int32', 'float32'].includes(dtype)) && (
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300 delay-200">
                             <div className="flex items-center gap-2 mb-4">
                                 <span className="material-symbols-outlined text-green-500">analytics</span>
                                 <h3 className="text-sm font-bold">Numeric Column Statistics</h3>

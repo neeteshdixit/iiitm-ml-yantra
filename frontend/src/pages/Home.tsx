@@ -15,13 +15,8 @@ export default function Home() {
                         <Link to="/clean" className="text-zinc-600 hover:text-[#ab3505] transition-colors hover:scale-[1.02]">Clean</Link>
                         <Link to="/train" className="text-zinc-600 hover:text-[#ab3505] transition-colors hover:scale-[1.02]">Train</Link>
                         <Link to="/results" className="text-zinc-600 hover:text-[#ab3505] transition-colors hover:scale-[1.02]">Results</Link>
-                        <Link to="/learn" className="text-zinc-600 hover:text-[#ab3505] transition-colors hover:scale-[1.02]">Learn</Link>
                     </div>
                     <div className="flex items-center gap-4">
-                        <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-[#efeeeb] rounded-full text-xs font-bold text-[#ab3505]">
-                            <span className="material-symbols-outlined text-sm">military_tech</span>
-                            XP: 0
-                        </div>
                         <Link to="/clean" className="ml-yantra-gradient text-white px-6 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider hover:scale-[1.02] active:scale-95 transition-all">
                             Get Started
                         </Link>
@@ -67,10 +62,6 @@ export default function Home() {
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-8">
                             <Link to="/clean" className="ml-yantra-gradient text-white px-12 py-6 rounded-xl font-bold text-xl shadow-[0_32px_64px_-16px_rgba(171,53,5,0.3)] hover:shadow-[0_40px_80px_-20px_rgba(171,53,5,0.4)] hover:-translate-y-1 active:scale-95 transition-all">
                                 Start Your First Build
-                            </Link>
-                            <Link to="/learn" className="flex items-center gap-3 bg-white/40 backdrop-blur-md border border-white/60 text-[#1a1c1a] px-12 py-6 rounded-xl font-bold text-xl hover:bg-white/60 hover:-translate-y-1 active:scale-95 transition-all group">
-                                <span className="material-symbols-outlined text-[#ab3505] group-hover:rotate-12 transition-transform">play_circle</span>
-                                See the Process
                             </Link>
                         </div>
                     </div>
