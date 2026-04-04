@@ -1,6 +1,7 @@
 """
 Model Trainer Service
 Handles ML model training, evaluation, and metrics calculation
+With built-in imbalanced dataset handling (SMOTE, stratified split, class weights)
 """
 
 import numpy as np
@@ -29,18 +30,18 @@ from typing import Dict, List, Tuple, Any, Optional
 
 # Algorithm definitions
 CLASSIFICATION_ALGORITHMS = {
-    'logistic_regression': lambda: LogisticRegression(max_iter=1000, random_state=42),
-    'random_forest': lambda: RandomForestClassifier(n_estimators=100, random_state=42),
-    'decision_tree': lambda: DecisionTreeClassifier(random_state=42),
-    'svm': lambda: SVC(kernel='rbf', random_state=42, probability=True)
+    'logistic_regression': lambda: LogisticRegression(max_iter=1000, class_weight='balanced', random_state=42),
+    'random_forest': lambda: RandomForestClassifier(n_estimators=100, max_depth=12, min_samples_split=5, class_weight='balanced', random_state=42, n_jobs=-1),
+    'decision_tree': lambda: DecisionTreeClassifier(max_depth=10, min_samples_split=5, class_weight='balanced', random_state=42),
+    'svm': lambda: SVC(kernel='rbf', class_weight='balanced', random_state=42, probability=True)
 }
 
 REGRESSION_ALGORITHMS = {
     'linear_regression': lambda: LinearRegression(),
-    'random_forest': lambda: RandomForestRegressor(n_estimators=100, random_state=42),
-    'decision_tree': lambda: DecisionTreeRegressor(random_state=42),
+    'random_forest': lambda: RandomForestRegressor(n_estimators=100, max_depth=12, min_samples_split=5, random_state=42, n_jobs=-1),
+    'decision_tree': lambda: DecisionTreeRegressor(max_depth=10, min_samples_split=5, random_state=42),
     'svr': lambda: SVR(kernel='rbf'),
-    'xgboost': lambda: XGBRegressor(n_estimators=100, random_state=42, verbosity=0)
+    'xgboost': lambda: XGBRegressor(n_estimators=100, max_depth=6, learning_rate=0.1, random_state=42, verbosity=0, n_jobs=-1)
 }
 
 ALGORITHM_NAMES = {
@@ -60,6 +61,56 @@ class ModelTrainer:
     def __init__(self):
         self.scalers = {}
     
+    def _detect_imbalance(self, y: pd.Series) -> Dict[str, Any]:
+        """
+        Detect class imbalance in target variable.
+        Returns imbalance info dict with class distribution and ratio.
+        """
+        value_counts = y.value_counts()
+        total = len(y)
+        
+        # Calculate class distribution as percentages
+        class_distribution = {
+            str(cls): round(count / total * 100, 2) 
+            for cls, count in value_counts.items()
+        }
+        
+        # Imbalance ratio = majority / minority
+        majority_count = value_counts.iloc[0]
+        minority_count = value_counts.iloc[-1]
+        imbalance_ratio = round(majority_count / minority_count, 1) if minority_count > 0 else float('inf')
+        
+        return {
+            'class_distribution': class_distribution,
+            'imbalance_ratio': imbalance_ratio,
+            'is_imbalanced': imbalance_ratio > 3.0,  # flag as imbalanced if ratio > 3:1
+            'is_severely_imbalanced': imbalance_ratio > 10.0  # severe if > 10:1
+        }
+    
+    def _apply_smote(self, X_train: pd.DataFrame, y_train: pd.Series) -> Tuple[pd.DataFrame, pd.Series]:
+        """
+        Apply SMOTE (Synthetic Minority Over-sampling Technique) to balance training data.
+        Only applied to training set — never to test set.
+        """
+        try:
+            from imblearn.over_sampling import SMOTE
+            
+            # Auto-determine k_neighbors based on minority class size
+            minority_count = y_train.value_counts().min()
+            k_neighbors = min(5, minority_count - 1) if minority_count > 1 else 1
+            
+            if k_neighbors < 1:
+                return X_train, y_train
+            
+            smote = SMOTE(random_state=42, k_neighbors=k_neighbors)
+            X_resampled, y_resampled = smote.fit_resample(X_train, y_train)
+            
+            return pd.DataFrame(X_resampled, columns=X_train.columns), pd.Series(y_resampled, name=y_train.name)
+        except Exception as e:
+            # If SMOTE fails for any reason, proceed without it
+            print(f"SMOTE could not be applied: {e}")
+            return X_train, y_train
+    
     def train_models(
         self,
         df: pd.DataFrame,
@@ -68,22 +119,13 @@ class ModelTrainer:
         problem_type: str,
         algorithms: List[str],
         train_test_split_ratio: float = 0.8,
+        validation_split: float = 0.0,
         scaling: bool = True
     ) -> Dict[str, Any]:
         """
-        Train multiple ML models and evaluate them
-        
-        Args:
-            df: Input dataframe
-            features: List of feature column names
-            target: Target column name
-            problem_type: 'classification' or 'regression'
-            algorithms: List of algorithm IDs to train
-            train_test_split_ratio: Ratio for train/test split
-            scaling: Whether to apply StandardScaler (True/False)
-        
-        Returns:
-            Dictionary with training results
+        Train multiple ML models and evaluate them.
+        Automatically detects and handles class imbalance via SMOTE + stratified splitting.
+        Supports optional 3-way split: train / test / validation.
         """
         # Prepare data
         X = df[features].copy()
@@ -97,14 +139,72 @@ class ModelTrainer:
         if X.empty:
             raise ValueError("Dataset is empty after dropping missing values. Please clean missing data first.")
             
+        # Hard cap dataset size for training to prevent server lock-ups on massive datasets
+        if len(X) > 20000:
+            # Use stratified sampling if classification to preserve class ratios
+            if problem_type == 'classification':
+                from sklearn.model_selection import train_test_split as stratified_sample
+                _, X_sampled, _, y_sampled = stratified_sample(
+                    X, y, test_size=20000/len(X), random_state=42, stratify=y
+                )
+                X = X_sampled
+                y = y_sampled
+            else:
+                sample_idx = X.sample(n=20000, random_state=42).index
+                X = X.loc[sample_idx]
+                y = y.loc[sample_idx]
+            
         categorical_cols = X.select_dtypes(include=['object', 'string', 'category']).columns
         if len(categorical_cols) > 0:
             raise ValueError(f"Cannot train models on string/categorical columns ({', '.join(categorical_cols)})... Please encode them first.")
         
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=(1 - train_test_split_ratio), random_state=42
-        )
+        # Detect class imbalance (classification only)
+        imbalance_info = None
+        smote_applied = False
+        if problem_type == 'classification':
+            imbalance_info = self._detect_imbalance(y)
+        
+        # === 3-WAY SPLIT: Train / Test / Validation ===
+        X_val, y_val = None, None
+        
+        if validation_split > 0:
+            # First split off the validation set
+            if problem_type == 'classification':
+                X_remaining, X_val, y_remaining, y_val = train_test_split(
+                    X, y, test_size=validation_split, random_state=42, stratify=y
+                )
+            else:
+                X_remaining, X_val, y_remaining, y_val = train_test_split(
+                    X, y, test_size=validation_split, random_state=42
+                )
+            
+            # Now split remaining into train and test
+            adjusted_test_ratio = (1 - train_test_split_ratio) / (1 - validation_split)
+            adjusted_test_ratio = min(max(adjusted_test_ratio, 0.05), 0.5)  # clamp to safe range
+            
+            if problem_type == 'classification':
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X_remaining, y_remaining, test_size=adjusted_test_ratio, random_state=42, stratify=y_remaining
+                )
+            else:
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X_remaining, y_remaining, test_size=adjusted_test_ratio, random_state=42
+                )
+        else:
+            # Standard 2-way split
+            if problem_type == 'classification':
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, test_size=(1 - train_test_split_ratio), random_state=42, stratify=y
+                )
+            else:
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, test_size=(1 - train_test_split_ratio), random_state=42
+                )
+        
+        # Apply SMOTE if imbalanced classification (on training data only)
+        if imbalance_info and imbalance_info['is_imbalanced']:
+            X_train, y_train = self._apply_smote(X_train, y_train)
+            smote_applied = True
         
         # Apply scaling if requested
         scaler = None
@@ -143,7 +243,14 @@ class ModelTrainer:
             
             # Create and train model
             model = algo_pool[algo_id]()
-            model.fit(X_train, y_train)
+            
+            # Prevent SVM from infinite hangs on huge datasets by capping training rows to 10k
+            if algo_id in ['svm', 'svr'] and len(X_train) > 10000:
+                X_train_fit = X_train.sample(n=10000, random_state=42)
+                y_train_fit = y_train.loc[X_train_fit.index]
+                model.fit(X_train_fit, y_train_fit)
+            else:
+                model.fit(X_train, y_train)
             
             # Make predictions
             y_pred = model.predict(X_test)
@@ -187,9 +294,17 @@ class ModelTrainer:
             }
         
         # Determine best model
+        # For imbalanced classification: rank by F1 Score (much more meaningful than accuracy)
+        # For balanced classification: rank by accuracy
+        # For regression: rank by R² Score
         if results:
             if problem_type == 'classification':
-                best_idx = max(range(len(results)), key=lambda i: results[i]['metrics']['accuracy'] or 0)
+                if imbalance_info and imbalance_info['is_imbalanced']:
+                    # Imbalanced: Use F1 Score as primary metric
+                    best_idx = max(range(len(results)), key=lambda i: results[i]['metrics']['f1Score'] or 0)
+                else:
+                    # Balanced: Use Accuracy
+                    best_idx = max(range(len(results)), key=lambda i: results[i]['metrics']['accuracy'] or 0)
             else:
                 best_idx = max(range(len(results)), key=lambda i: results[i]['metrics']['r2Score'] or 0)
             
@@ -200,13 +315,52 @@ class ModelTrainer:
         
         training_id = str(uuid.uuid4())
         
-        return {
+        response = {
             'trainingId': training_id,
             'problemType': problem_type,
             'models': results,
             'bestModel': best_model_id,
             'trained_models': trained_models
         }
+        
+        # Attach imbalance metadata if classification
+        if imbalance_info:
+            response['classDistribution'] = imbalance_info['class_distribution']
+            response['imbalanceRatio'] = imbalance_info['imbalance_ratio']
+            response['smoteApplied'] = smote_applied
+        
+        # === VALIDATION SET METRICS ===
+        # If a validation split was requested, evaluate the best model on the held-out validation set
+        if X_val is not None and y_val is not None and best_model_id and best_model_id in trained_models:
+            best_model_data = trained_models[best_model_id]
+            best_model = best_model_data['model']
+            
+            # Apply same scaling to validation set
+            X_val_scaled = X_val
+            if scaler is not None:
+                X_val_scaled = pd.DataFrame(
+                    scaler.transform(X_val),
+                    columns=X_val.columns,
+                    index=X_val.index
+                )
+            
+            y_val_pred = best_model.predict(X_val_scaled)
+            val_metrics = self._calculate_metrics(
+                y_val.values, y_val_pred, problem_type, best_model, X_val_scaled, len(features)
+            )
+            
+            val_conf_matrix = None
+            if problem_type == 'classification':
+                val_conf_matrix = confusion_matrix(y_val, y_val_pred).tolist()
+            
+            response['validationMetrics'] = {
+                'metrics': val_metrics,
+                'confusionMatrix': val_conf_matrix,
+                'validationRows': len(y_val),
+                'bestModelName': ALGORITHM_NAMES.get(results[best_idx]['algorithm'], results[best_idx]['algorithm'])
+            }
+        
+        return response
     
     def _calculate_metrics(
         self,

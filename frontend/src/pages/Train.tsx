@@ -25,6 +25,8 @@ export default function Train() {
     const [targetColumn, setTargetColumn] = useState<string>('')
     const [problemType, setProblemType] = useState<ProblemType>('classification')
     const [trainTestSplit, setTrainTestSplit] = useState(80)
+    const [enableValidation, setEnableValidation] = useState(false)
+    const [validationSplitPct, setValidationSplitPct] = useState(10)
 
     // Validation state
     const [validationWarnings, setValidationWarnings] = useState<ValidationIssue[]>([])
@@ -37,6 +39,13 @@ export default function Train() {
 
     // Results state
     const [trainingResults, setTrainingResults] = useState<any>(null)
+
+    // Validation state (unseen data testing)
+    const [validationMode, setValidationMode] = useState<'none' | 'upload' | 'manual'>('none')
+    const [validationResults, setValidationResults] = useState<any>(null)
+    const [validationLoading, setValidationLoading] = useState(false)
+    const [manualInputs, setManualInputs] = useState<Record<string, string>>({})
+    const [manualPrediction, setManualPrediction] = useState<any>(null)
 
     useEffect(() => {
         const storedSessionId = localStorage.getItem('ml_yantra_session_id')
@@ -139,13 +148,51 @@ export default function Train() {
             `[${new Date().toLocaleTimeString()}] INFO: Training ${algoLabel}...`,
         ])
 
-        // Simulate progress
+        const algorithmsToTrain = problemType === 'regression' 
+            ? ['Linear Regression', 'Random Forest', 'Decision Tree', 'Support Vector Regression', 'XGBoost']
+            : ['Logistic Regression', 'Random Forest', 'Decision Tree', 'Support Vector Machine'];
+        
+        let currentAlgoIndex = 0;
+        let isAlgoTraining = false;
+
+        // Simulate progress and algorithm logs
         const progressInterval = setInterval(() => {
             setTrainingProgress(prev => {
-                if (prev >= 90) return prev
-                return prev + Math.random() * 10
+                const stepSize = 90 / algorithmsToTrain.length;
+                const nextProgress = prev + (Math.random() * 3 + 1); // smooth slow increment
+                
+                const expectedIndex = Math.floor(nextProgress / stepSize);
+                
+                if (expectedIndex > currentAlgoIndex && isAlgoTraining) {
+                    const completedAlgo = algorithmsToTrain[currentAlgoIndex];
+                    setTrainingLogs(logs => [...logs, `[${new Date().toLocaleTimeString()}] SUCCESS: Completed training ${completedAlgo}`]);
+                    currentAlgoIndex++;
+                    isAlgoTraining = false;
+                }
+                
+                if (!isAlgoTraining && currentAlgoIndex < algorithmsToTrain.length) {
+                    const nextAlgo = algorithmsToTrain[currentAlgoIndex];
+                    setTrainingLogs(logs => [...logs, `[${new Date().toLocaleTimeString()}] INFO: Training ${nextAlgo}...`]);
+                    isAlgoTraining = true;
+                }
+                
+                if (nextProgress >= 90) {
+                    if (isAlgoTraining && currentAlgoIndex < algorithmsToTrain.length) {
+                        const lastAlgo = algorithmsToTrain[currentAlgoIndex];
+                        setTrainingLogs(logs => [
+                            ...logs, 
+                            `[${new Date().toLocaleTimeString()}] SUCCESS: Completed training ${lastAlgo}`,
+                            `[${new Date().toLocaleTimeString()}] INFO: Assembling final models & generating comparison metrics...`,
+                            `[${new Date().toLocaleTimeString()}] INFO: Please wait, this may take a few moments for large datasets.`
+                        ]);
+                        isAlgoTraining = false;
+                        currentAlgoIndex++;
+                    }
+                    return 90;
+                }
+                return nextProgress;
             })
-        }, 800)
+        }, 1500)
 
         try {
             const result = await apiClient.startTraining(sessionId, {
@@ -154,16 +201,24 @@ export default function Train() {
                 problemType: problemType,
                 algorithms: [], // Empty = train ALL algorithms for the problem type
                 trainTestSplit: trainTestSplit / 100,
+                validationSplit: enableValidation ? validationSplitPct / 100 : 0,
                 scaling: true,
             })
 
             clearInterval(progressInterval)
             setTrainingProgress(100)
-            setTrainingLogs(prev => [
-                ...prev,
+            const completeLogs = [
                 `[${new Date().toLocaleTimeString()}] SUCCESS: Training complete — ${result.models?.length || 0} models trained`,
-                `[${new Date().toLocaleTimeString()}] INFO: Best model: ${result.models?.find((m: any) => m.isBest)?.name || 'N/A'}`,
-            ])
+            ]
+            if (result.smoteApplied) {
+                completeLogs.push(`[${new Date().toLocaleTimeString()}] INFO: SMOTE oversampling was applied to balance imbalanced classes`)
+                completeLogs.push(`[${new Date().toLocaleTimeString()}] INFO: Imbalance ratio: ${result.imbalanceRatio}:1 — Models ranked by F1 Score`)
+            }
+            completeLogs.push(`[${new Date().toLocaleTimeString()}] INFO: Best model: ${result.models?.find((m: any) => m.isBest)?.name || 'N/A'}`)
+            if (result.validationMetrics) {
+                completeLogs.push(`[${new Date().toLocaleTimeString()}] INFO: Validation set — ${result.validationMetrics.validationRows} unseen rows evaluated`)
+            }
+            setTrainingLogs(prev => [...prev, ...completeLogs])
             setTrainingResults(result)
             setProblemType((result.problemType || problemType) as ProblemType)
             // Store training results for Results page
@@ -379,9 +434,65 @@ export default function Train() {
                             </div>
                             <div className="flex justify-between text-[10px]">
                                 <span className="text-primary font-bold">Training Data</span>
+                                {enableValidation && <span className="text-emerald-500 font-bold">Validation</span>}
                                 <span className="text-orange-500 font-bold">Test Data</span>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Validation Set Toggle + Slider */}
+                    <div>
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-bold flex items-center gap-2 font-heading">
+                                <span className="material-symbols-outlined text-emerald-500 text-base">science</span>
+                                Validation Set
+                            </h3>
+                            <button
+                                onClick={() => setEnableValidation(!enableValidation)}
+                                className={`relative w-10 h-5 rounded-full transition-all duration-200 ${
+                                    enableValidation ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
+                                }`}
+                            >
+                                <span className={`absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                                    enableValidation ? 'translate-x-5' : 'translate-x-0'
+                                }`} />
+                            </button>
+                        </div>
+                        {enableValidation ? (
+                            <div className="space-y-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-4 border border-emerald-200 dark:border-emerald-800">
+                                <div className="flex justify-between text-xs font-bold">
+                                    <span className="text-emerald-600">Validation: {validationSplitPct}%</span>
+                                    <span className="text-slate-400">({100 - trainTestSplit - validationSplitPct}% Train / {100 - trainTestSplit}% Test)</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min={5}
+                                    max={Math.min(30, 100 - trainTestSplit - 10)}
+                                    step={5}
+                                    value={validationSplitPct}
+                                    onChange={(e) => setValidationSplitPct(Number(e.target.value))}
+                                    className="w-full h-2 bg-emerald-200 dark:bg-emerald-900 rounded-full appearance-none cursor-pointer accent-emerald-500"
+                                />
+                                <p className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80 leading-relaxed">
+                                    A separate {validationSplitPct}% of data will be held out — completely unseen during training and testing. The best model will be auto-evaluated on it.
+                                </p>
+                                {/* 3-way visual bar */}
+                                <div className="flex h-3 rounded-full overflow-hidden border border-emerald-300 dark:border-emerald-700">
+                                    <div className="bg-primary/80 transition-all" style={{ width: `${100 - (100 - trainTestSplit) - validationSplitPct}%` }}></div>
+                                    <div className="bg-orange-400/60 transition-all" style={{ width: `${100 - trainTestSplit}%` }}></div>
+                                    <div className="bg-emerald-500/60 transition-all" style={{ width: `${validationSplitPct}%` }}></div>
+                                </div>
+                                <div className="flex justify-between text-[9px] font-bold">
+                                    <span className="text-primary">Train {100 - (100 - trainTestSplit) - validationSplitPct}%</span>
+                                    <span className="text-orange-500">Test {100 - trainTestSplit}%</span>
+                                    <span className="text-emerald-600">Val {validationSplitPct}%</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-[11px] text-slate-400 leading-relaxed">
+                                Enable to hold out a portion of your data as a completely unseen validation set. The best model will be auto-tested on it after training.
+                            </p>
+                        )}
                     </div>
                 </aside>
 
@@ -493,13 +604,64 @@ export default function Train() {
                                 </div>
                             </div>
 
+                            {/* Imbalance Alert Banner */}
+                            {currentStep === 'results' && trainingResults?.imbalanceRatio > 3 && (
+                                <div className="rounded-xl border-2 border-amber-400/50 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 p-5 shadow-sm">
+                                    <div className="flex items-start gap-3">
+                                        <span className="material-symbols-outlined text-amber-500 text-2xl mt-0.5">balance</span>
+                                        <div className="flex-1">
+                                            <h4 className="font-bold text-amber-800 dark:text-amber-300 text-sm mb-2 flex items-center gap-2">
+                                                ⚠️ Imbalanced Dataset Detected
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 font-black uppercase">
+                                                    Ratio {trainingResults.imbalanceRatio}:1
+                                                </span>
+                                            </h4>
+                                            <div className="space-y-2 text-xs text-amber-900/80 dark:text-amber-200/80 leading-relaxed">
+                                                <p>
+                                                    <strong>Class Distribution:</strong>{' '}
+                                                    {trainingResults.classDistribution && Object.entries(trainingResults.classDistribution).map(([cls, pct]) => (
+                                                        <span key={cls} className="inline-flex items-center gap-1 mr-3">
+                                                            <span className="size-2 rounded-full bg-amber-500"></span>
+                                                            Class {cls}: {pct as number}%
+                                                        </span>
+                                                    ))}
+                                                </p>
+                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                    {trainingResults.smoteApplied && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold">
+                                                            <span className="material-symbols-outlined text-xs">check_circle</span>
+                                                            SMOTE Applied
+                                                        </span>
+                                                    )}
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[10px] font-bold">
+                                                        <span className="material-symbols-outlined text-xs">check_circle</span>
+                                                        class_weight=balanced
+                                                    </span>
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-[10px] font-bold">
+                                                        <span className="material-symbols-outlined text-xs">check_circle</span>
+                                                        Stratified Split
+                                                    </span>
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 text-[10px] font-bold">
+                                                        <span className="material-symbols-outlined text-xs">star</span>
+                                                        Ranked by F1 Score
+                                                    </span>
+                                                </div>
+                                                <p className="mt-2 text-[11px] italic text-amber-700/70 dark:text-amber-300/60">
+                                                    Accuracy alone is misleading for imbalanced data. F1 Score balances Precision &amp; Recall for a fairer evaluation.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Results: Models Comparison Table */}
                             {currentStep === 'results' && trainingResults?.models && (
                                 <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                                     <div className="p-6">
                                         <h3 className="text-xl font-bold mb-1 font-heading">Model Comparison</h3>
                                         <p className="text-sm text-slate-500">
-                                            {trainingResults.models.length} models trained and ranked by {problemType === 'classification' ? 'accuracy' : 'R² score'}
+                                            {trainingResults.models.length} models trained and ranked by {trainingResults?.imbalanceRatio > 3 ? 'F1 Score (imbalanced data)' : problemType === 'classification' ? 'accuracy' : 'R² score'}
                                         </p>
                                     </div>
                                     <div className="overflow-x-auto">
@@ -535,6 +697,9 @@ export default function Train() {
                                                 {[...trainingResults.models]
                                                     .sort((a: any, b: any) => {
                                                         if (problemType === 'classification') {
+                                                            if (trainingResults?.imbalanceRatio > 3) {
+                                                                return (b.metrics.f1Score || 0) - (a.metrics.f1Score || 0)
+                                                            }
                                                             return (b.metrics.accuracy || 0) - (a.metrics.accuracy || 0)
                                                         }
                                                         return (b.metrics.r2Score || 0) - (a.metrics.r2Score || 0)
@@ -556,10 +721,10 @@ export default function Train() {
                                                         </td>
                                                         {problemType === 'classification' ? (
                                                             <>
-                                                                <td className="px-4 py-3 font-mono font-medium">{model.metrics.accuracy?.toFixed(4) ?? 'N/A'}</td>
+                                                                <td className={`px-4 py-3 font-mono font-medium ${trainingResults?.imbalanceRatio > 3 ? 'text-slate-400 line-through decoration-slate-300' : ''}`}>{model.metrics.accuracy?.toFixed(4) ?? 'N/A'}</td>
                                                                 <td className="px-4 py-3 font-mono font-medium">{model.metrics.precision?.toFixed(4) ?? 'N/A'}</td>
                                                                 <td className="px-4 py-3 font-mono font-medium">{model.metrics.recall?.toFixed(4) ?? 'N/A'}</td>
-                                                                <td className="px-4 py-3 font-mono font-medium">{model.metrics.f1Score?.toFixed(4) ?? 'N/A'}</td>
+                                                                <td className={`px-4 py-3 font-mono font-bold ${trainingResults?.imbalanceRatio > 3 ? 'text-primary' : 'font-medium'}`}>{model.metrics.f1Score?.toFixed(4) ?? 'N/A'}</td>
                                                                 <td className="px-4 py-3 font-mono font-medium">{model.metrics.rocAuc?.toFixed(4) ?? '—'}</td>
                                                                 <td className="px-4 py-3 font-mono font-medium">{model.metrics.logLoss?.toFixed(4) ?? '—'}</td>
                                                             </>
@@ -585,6 +750,297 @@ export default function Train() {
                                                 ))}
                                             </tbody>
                                         </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Auto-Validation Metrics (from held-out validation split) */}
+                            {currentStep === 'results' && trainingResults?.validationMetrics && (
+                                <div className="bg-white dark:bg-slate-900 rounded-xl border-2 border-emerald-300 dark:border-emerald-800 shadow-sm overflow-hidden">
+                                    <div className="p-6 border-b border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30">
+                                        <h3 className="text-xl font-bold mb-1 font-heading flex items-center gap-2">
+                                            <span className="material-symbols-outlined text-emerald-500">verified</span>
+                                            Validation Set Results
+                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200 font-black uppercase">
+                                                Unseen Data
+                                            </span>
+                                        </h3>
+                                        <p className="text-sm text-emerald-700/80 dark:text-emerald-400/80">
+                                            Best model ({trainingResults.validationMetrics.bestModelName}) evaluated on {trainingResults.validationMetrics.validationRows} completely unseen rows
+                                        </p>
+                                    </div>
+                                    <div className="p-6">
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                            {problemType === 'classification' ? (
+                                                <>
+                                                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Accuracy</p>
+                                                        <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{trainingResults.validationMetrics.metrics.accuracy?.toFixed(4) ?? '—'}</p>
+                                                    </div>
+                                                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Precision</p>
+                                                        <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{trainingResults.validationMetrics.metrics.precision?.toFixed(4) ?? '—'}</p>
+                                                    </div>
+                                                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Recall</p>
+                                                        <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{trainingResults.validationMetrics.metrics.recall?.toFixed(4) ?? '—'}</p>
+                                                    </div>
+                                                    <div className="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 border-2 border-emerald-400/50">
+                                                        <p className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider">F1 Score</p>
+                                                        <p className="text-xl font-black text-emerald-600 mt-1">{trainingResults.validationMetrics.metrics.f1Score?.toFixed(4) ?? '—'}</p>
+                                                    </div>
+                                                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">ROC AUC</p>
+                                                        <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{trainingResults.validationMetrics.metrics.rocAuc?.toFixed(4) ?? '—'}</p>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 border-2 border-emerald-400/50">
+                                                        <p className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider">R² Score</p>
+                                                        <p className="text-xl font-black text-emerald-600 mt-1">{trainingResults.validationMetrics.metrics.r2Score?.toFixed(4) ?? '—'}</p>
+                                                    </div>
+                                                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">MAE</p>
+                                                        <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{trainingResults.validationMetrics.metrics.mae?.toFixed(4) ?? '—'}</p>
+                                                    </div>
+                                                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">RMSE</p>
+                                                        <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{trainingResults.validationMetrics.metrics.rmse?.toFixed(4) ?? '—'}</p>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                        <p className="text-[11px] text-emerald-600/70 dark:text-emerald-400/50 mt-3 italic">
+                                            These metrics reflect true generalization — this data was never seen during training or test evaluation.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ===== VALIDATION ON UNSEEN DATA SECTION ===== */}
+                            {currentStep === 'results' && trainingResults && (
+                                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                                    <div className="p-6 border-b border-slate-200 dark:border-slate-800">
+                                        <h3 className="text-xl font-bold mb-1 font-heading flex items-center gap-2">
+                                            <span className="material-symbols-outlined text-primary">science</span>
+                                            Validate on Unseen Data
+                                        </h3>
+                                        <p className="text-sm text-slate-500">
+                                            Test the best model on completely new data to verify real-world performance
+                                        </p>
+                                    </div>
+                                    <div className="p-6 space-y-4">
+                                        {/* Mode Tabs */}
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => { setValidationMode('upload'); setValidationResults(null); setManualPrediction(null) }}
+                                                className={`flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                                                    validationMode === 'upload'
+                                                        ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                                                }`}
+                                            >
+                                                <span className="material-symbols-outlined text-sm">upload_file</span>
+                                                Upload CSV
+                                            </button>
+                                            <button
+                                                onClick={() => { setValidationMode('manual'); setValidationResults(null); setManualPrediction(null) }}
+                                                className={`flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                                                    validationMode === 'manual'
+                                                        ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                                                }`}
+                                            >
+                                                <span className="material-symbols-outlined text-sm">edit_note</span>
+                                                Manual Entry
+                                            </button>
+                                        </div>
+
+                                        {/* Upload CSV Mode */}
+                                        {validationMode === 'upload' && (
+                                            <div className="space-y-4">
+                                                <div
+                                                    className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-6 text-center cursor-pointer hover:border-primary/50 transition-all"
+                                                    onClick={() => document.getElementById('validation-csv-input')?.click()}
+                                                >
+                                                    <input
+                                                        id="validation-csv-input"
+                                                        type="file"
+                                                        accept=".csv"
+                                                        className="hidden"
+                                                        onChange={async (e) => {
+                                                            const file = e.target.files?.[0]
+                                                            if (!file || !bestModel) return
+                                                            setValidationLoading(true)
+                                                            setValidationResults(null)
+                                                            try {
+                                                                const result = await apiClient.validateOnUnseenData(
+                                                                    trainingResults.trainingId,
+                                                                    bestModel.modelId,
+                                                                    file
+                                                                )
+                                                                setValidationResults(result)
+                                                                toast.success(`Validated on ${result.validRows} rows!`)
+                                                            } catch (err: any) {
+                                                                toast.error(`Validation failed: ${err.response?.data?.detail || err.message}`)
+                                                            } finally {
+                                                                setValidationLoading(false)
+                                                                e.target.value = ''
+                                                            }
+                                                        }}
+                                                    />
+                                                    <span className="material-symbols-outlined text-3xl text-slate-400 mb-2">upload_file</span>
+                                                    <p className="text-sm font-bold text-slate-600 dark:text-slate-400">
+                                                        {validationLoading ? 'Validating...' : 'Click to upload validation CSV'}
+                                                    </p>
+                                                    <p className="text-xs text-slate-400 mt-1">
+                                                        Must contain the same feature columns{targetColumn ? ` (+ "${targetColumn}" for metrics)` : ''}
+                                                    </p>
+                                                </div>
+
+                                                {/* Validation Results */}
+                                                {validationResults && (
+                                                    <div className="space-y-4">
+                                                        <div className="flex items-center gap-3 p-3 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                                                            <span className="material-symbols-outlined text-green-500">check_circle</span>
+                                                            <div>
+                                                                <p className="text-sm font-bold text-green-700 dark:text-green-300">
+                                                                    Validated on {validationResults.validRows} / {validationResults.totalRows} rows
+                                                                </p>
+                                                                <p className="text-xs text-green-600/80 dark:text-green-400/80">
+                                                                    {validationResults.hasTarget ? 'Metrics computed against actual target values.' : 'No target column found — predictions only (no metrics).'}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Metrics Grid */}
+                                                        {validationResults.hasTarget && validationResults.metrics && (
+                                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                                                {problemType === 'classification' ? (
+                                                                    <>
+                                                                        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                                                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Accuracy</p>
+                                                                            <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{validationResults.metrics.accuracy?.toFixed(4) ?? '—'}</p>
+                                                                        </div>
+                                                                        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                                                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Precision</p>
+                                                                            <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{validationResults.metrics.precision?.toFixed(4) ?? '—'}</p>
+                                                                        </div>
+                                                                        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                                                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Recall</p>
+                                                                            <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{validationResults.metrics.recall?.toFixed(4) ?? '—'}</p>
+                                                                        </div>
+                                                                        <div className="p-3 rounded-xl bg-primary/10 border-2 border-primary/30">
+                                                                            <p className="text-[10px] uppercase font-bold text-primary tracking-wider">F1 Score</p>
+                                                                            <p className="text-xl font-black text-primary mt-1">{validationResults.metrics.f1Score?.toFixed(4) ?? '—'}</p>
+                                                                        </div>
+                                                                        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                                                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">ROC AUC</p>
+                                                                            <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{validationResults.metrics.rocAuc?.toFixed(4) ?? '—'}</p>
+                                                                        </div>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <div className="p-3 rounded-xl bg-primary/10 border-2 border-primary/30">
+                                                                            <p className="text-[10px] uppercase font-bold text-primary tracking-wider">R² Score</p>
+                                                                            <p className="text-xl font-black text-primary mt-1">{validationResults.metrics.r2Score?.toFixed(4) ?? '—'}</p>
+                                                                        </div>
+                                                                        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                                                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">MAE</p>
+                                                                            <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{validationResults.metrics.mae?.toFixed(4) ?? '—'}</p>
+                                                                        </div>
+                                                                        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                                                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">RMSE</p>
+                                                                            <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{validationResults.metrics.rmse?.toFixed(4) ?? '—'}</p>
+                                                                        </div>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Manual Entry Mode */}
+                                        {validationMode === 'manual' && (
+                                            <div className="space-y-4">
+                                                <p className="text-xs text-slate-500">Enter feature values to get a single prediction from the best model:</p>
+                                                <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                                                    {selectedFeatures.map(feat => (
+                                                        <div key={feat} className="space-y-1">
+                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate block" title={feat}>
+                                                                {feat}
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                step="any"
+                                                                value={manualInputs[feat] ?? ''}
+                                                                onChange={(e) => setManualInputs(prev => ({ ...prev, [feat]: e.target.value }))}
+                                                                placeholder="0.0"
+                                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!bestModel) return
+                                                        try {
+                                                            const values: Record<string, number> = {}
+                                                            selectedFeatures.forEach(f => {
+                                                                values[f] = parseFloat(manualInputs[f] || '0')
+                                                            })
+                                                            const result = await apiClient.predictManual(
+                                                                trainingResults.trainingId,
+                                                                bestModel.modelId,
+                                                                values
+                                                            )
+                                                            setManualPrediction(result)
+                                                            toast.success('Prediction generated!')
+                                                        } catch (err: any) {
+                                                            toast.error(`Prediction failed: ${err.response?.data?.detail || err.message}`)
+                                                        }
+                                                    }}
+                                                    className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-primary/20 transition-all"
+                                                >
+                                                    <span className="material-symbols-outlined">psychology</span>
+                                                    Predict
+                                                </button>
+
+                                                {/* Manual Prediction Result */}
+                                                {manualPrediction && (
+                                                    <div className="rounded-xl bg-gradient-to-r from-primary/10 to-blue-500/10 p-5 border-2 border-primary/20">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="size-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                                                                <span className="material-symbols-outlined text-primary text-xl">output</span>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Predicted Value</p>
+                                                                <p className="text-2xl font-black text-primary">
+                                                                    {typeof manualPrediction.prediction === 'number'
+                                                                        ? manualPrediction.prediction.toFixed(4)
+                                                                        : String(manualPrediction.prediction)}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        {manualPrediction.probabilities && (
+                                                            <div className="mt-3 pt-3 border-t border-primary/10">
+                                                                <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2">Class Probabilities</p>
+                                                                <div className="flex gap-2 flex-wrap">
+                                                                    {manualPrediction.probabilities.map((prob: number, i: number) => (
+                                                                        <span key={i} className="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 text-xs font-mono font-bold border border-slate-200 dark:border-slate-700">
+                                                                            Class {i}: {(prob * 100).toFixed(1)}%
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}

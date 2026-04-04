@@ -1272,8 +1272,8 @@ export default function Clean() {
     }
 
     const handleFileSelect = async (file: File) => {
-        if (file.size > 100 * 1024 * 1024) {
-            toast.error('File is too large! Please upload a dataset under 100MB.')
+        if (file.size > 200 * 1024 * 1024) {
+            toast.error('File is too large! Please upload a dataset under 200MB.')
             return
         }
         setLoading(true)

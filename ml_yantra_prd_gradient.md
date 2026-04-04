@@ -133,21 +133,24 @@ By democratizing machine learning with AI-powered guidance, ML Yantra accelerate
 4. **Model Configuration**
    - Target variable selection
    - Feature selection interface
-   - Automatic train/test split (configurable ratio)
+   - Configurable Train/Test/Validation splitting (optional 3-way split)
    - Classification vs Regression auto-detection
 
-5. **Algorithm Support**
+5. **Algorithm Support & Data Handling**
    - **Classification**: Logistic Regression, Random Forest, Decision Tree, SVM
    - **Regression**: Linear Regression, Random Forest, Decision Tree, SVR, XGBoost
+   - Automated class imbalance detection for classification
+   - SMOTE (Synthetic Minority Over-sampling Technique) and stratified splitting for robust modeling
    - Automatic feature scaling for algorithms that require it
-   - Model training with progress indicators
+   - Model training with real-time logs and progress indicators
 
 6. **Model Evaluation & Comparison**
-   - Performance metrics display (Accuracy, Precision, Recall, F1, R², MAE, RMSE)
+   - Performance metrics display (Accuracy, Precision, Recall, F1, ROC AUC, Log Loss for Classification; R², MAE, RMSE, MAPE for Regression)
+   - Auto-adjustment of primary evaluation metric (e.g., forcing F1 instead of Accuracy on imbalanced datasets)
    - Interactive visualizations (confusion matrix, ROC curves, feature importance)
    - Side-by-side model comparison table
-   - Best model recommendation based on metrics
-
+   - **Validate on Unseen Data**: Test best models securely against distinct validation sets, manual feature inputs, or external CSVs
+   - Best model recommendation based on task-appropriate metrics
 **Phase 3: Data Visualization Studio (Days 21-28)**
 **Priority: P0 (Must Have)**
 

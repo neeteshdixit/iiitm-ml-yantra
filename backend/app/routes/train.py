@@ -135,6 +135,30 @@ async def validate_features(session_id: str, request: FeatureValidationRequest):
                 message=f"Only {non_null_count} valid rows for training. Results may be unreliable with so few samples."
             ))
         
+        # 7. CLASS IMBALANCE DETECTION (critical for fraud, medical, anomaly datasets)
+        if request.problemType == 'classification':
+            value_counts = df[request.target].value_counts()
+            total = len(df)
+            majority_count = value_counts.iloc[0]
+            minority_count = value_counts.iloc[-1]
+            imbalance_ratio = round(majority_count / minority_count, 1) if minority_count > 0 else float('inf')
+            
+            if imbalance_ratio > 10:
+                # Severely imbalanced (e.g., credit card fraud)
+                dist_str = ', '.join([f"Class {cls}: {count} ({round(count/total*100, 2)}%)" for cls, count in value_counts.items()])
+                warnings.append(ValidationIssue(
+                    level="warning",
+                    column=request.target,
+                    message=f"⚠️ SEVERELY IMBALANCED DATASET DETECTED (Ratio: {imbalance_ratio}:1). Distribution: {dist_str}. Accuracy is misleading for this data — F1 Score, Precision, and Recall are more meaningful. SMOTE oversampling will be auto-applied during training to balance the minority class."
+                ))
+            elif imbalance_ratio > 3:
+                dist_str = ', '.join([f"Class {cls}: {count} ({round(count/total*100, 2)}%)" for cls, count in value_counts.items()])
+                warnings.append(ValidationIssue(
+                    level="warning",
+                    column=request.target,
+                    message=f"Imbalanced dataset detected (Ratio: {imbalance_ratio}:1). Distribution: {dist_str}. SMOTE oversampling will be auto-applied. Models will be ranked by F1 Score instead of Accuracy."
+                ))
+        
         valid = len(errors) == 0
         return FeatureValidationResponse(valid=valid, warnings=warnings, errors=errors)
         
@@ -167,6 +191,7 @@ async def start_training(session_id: str, request: TrainingRequest):
             problem_type=request.problemType,
             algorithms=request.algorithms,
             train_test_split_ratio=request.trainTestSplit,
+            validation_split=request.validationSplit,
             scaling=request.scaling
         )
         
@@ -197,7 +222,11 @@ async def start_training(session_id: str, request: TrainingRequest):
             problemType=results['problemType'],
             models=results['models'],
             bestModel=results['bestModel'],
-            message=f"Successfully trained {len(results['models'])} model(s)"
+            message=f"Successfully trained {len(results['models'])} model(s)",
+            classDistribution=results.get('classDistribution'),
+            imbalanceRatio=results.get('imbalanceRatio'),
+            smoteApplied=results.get('smoteApplied'),
+            validationMetrics=results.get('validationMetrics')
         )
         
     except ValueError as e:
@@ -341,3 +370,152 @@ async def export_config(training_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error exporting config: {str(e)}")
+
+
+from fastapi import File, UploadFile, Form
+
+@router.post("/validate-unseen/{training_id}/{model_id}")
+async def validate_on_unseen_data(
+    training_id: str,
+    model_id: str,
+    file: UploadFile = File(...)
+):
+    """
+    Validate a trained model on completely unseen data.
+    Accepts a CSV file with the same features + target column.
+    Returns predictions and metrics computed against the actual target values.
+    """
+    try:
+        models = get_trained_models(training_id)
+        if not models:
+            raise HTTPException(status_code=404, detail="Training not found")
+        
+        if model_id not in models:
+            raise HTTPException(status_code=404, detail="Model not found")
+        
+        results_data = get_training_results(training_id)
+        if not results_data:
+            raise HTTPException(status_code=404, detail="Training results not found")
+        
+        model_data = models[model_id]
+        model = model_data['model']
+        scaler = model_data['scaler']
+        features = model_data['features']
+        target = model_data['target']
+        problem_type = results_data['problemType']
+        
+        # Read uploaded CSV
+        contents = await file.read()
+        df = pd.read_csv(io.BytesIO(contents))
+        
+        # Check features exist
+        missing_features = [f for f in features if f not in df.columns]
+        if missing_features:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing feature columns in uploaded file: {', '.join(missing_features)}"
+            )
+        
+        has_target = target in df.columns
+        
+        X_val = df[features].copy()
+        
+        # Drop rows with NaN in features
+        valid_mask = X_val.notna().all(axis=1)
+        if has_target:
+            valid_mask = valid_mask & df[target].notna()
+        X_val = X_val[valid_mask]
+        
+        if X_val.empty:
+            raise HTTPException(status_code=400, detail="No valid rows in uploaded file after removing nulls")
+        
+        # Apply scaling
+        if scaler is not None:
+            X_val = pd.DataFrame(
+                scaler.transform(X_val),
+                columns=X_val.columns,
+                index=X_val.index
+            )
+        
+        # Make predictions
+        y_pred = model.predict(X_val)
+        
+        # Calculate metrics if target column is present
+        validation_metrics = None
+        confusion_mat = None
+        if has_target:
+            y_true = df[target][valid_mask]
+            
+            from app.services.model_trainer import model_trainer
+            validation_metrics = model_trainer._calculate_metrics(
+                y_true.values, y_pred, problem_type, model, X_val, len(features)
+            )
+            
+            if problem_type == 'classification':
+                from sklearn.metrics import confusion_matrix as cm
+                confusion_mat = cm(y_true, y_pred).tolist()
+        
+        # Get probabilities if available
+        probabilities = None
+        if hasattr(model, 'predict_proba'):
+            probabilities = model.predict_proba(X_val).tolist()
+        
+        return {
+            "totalRows": len(df),
+            "validRows": int(valid_mask.sum()),
+            "predictions": y_pred.tolist(),
+            "probabilities": probabilities,
+            "hasTarget": has_target,
+            "metrics": validation_metrics,
+            "confusionMatrix": confusion_mat
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error validating on unseen data: {str(e)}")
+
+
+@router.post("/predict-manual/{training_id}/{model_id}")
+async def predict_manual(training_id: str, model_id: str, data: dict):
+    """Make a single prediction from manually entered feature values"""
+    try:
+        models = get_trained_models(training_id)
+        if not models:
+            raise HTTPException(status_code=404, detail="Training not found")
+        
+        if model_id not in models:
+            raise HTTPException(status_code=404, detail="Model not found")
+        
+        model_data = models[model_id]
+        model = model_data['model']
+        scaler = model_data['scaler']
+        features = model_data['features']
+        
+        input_values = data.get('values', {})
+        
+        # Build input dataframe
+        input_df = pd.DataFrame([{f: float(input_values.get(f, 0)) for f in features}])
+        
+        # Apply scaling
+        if scaler is not None:
+            input_df = pd.DataFrame(
+                scaler.transform(input_df),
+                columns=input_df.columns
+            )
+        
+        prediction = model.predict(input_df)
+        
+        probabilities = None
+        if hasattr(model, 'predict_proba'):
+            probabilities = model.predict_proba(input_df).tolist()
+        
+        return {
+            "prediction": prediction.tolist()[0] if len(prediction) > 0 else None,
+            "probabilities": probabilities[0] if probabilities else None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error making prediction: {str(e)}")

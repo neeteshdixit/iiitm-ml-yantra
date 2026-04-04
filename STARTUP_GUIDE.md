@@ -42,16 +42,16 @@ Navigate to: **http://localhost:5173**
 - Select features and target
 - Choose problem type (classification/regression)
 - Select algorithms
-- Set train/test split
-- Train models
-- View results and metrics
+- Set **Train/Test/Validation split** (optional 3-way split for hold-out validation)
+- Train models (system auto-detects imbalance and applies SMOTE + stratified splits)
+- View results and metrics (models rank by F1 Score if data is imbalanced)
 - Download best model
 - **Export configuration**
 
-### 3. Predictions
-- After training, scroll to **"Make Predictions"** section
-- Enter feature values
-- Get instant predictions
+### 3. Validate on Unseen Data (Predictions)
+- After training, scroll to **"Validate on Unseen Data"** section
+- **Upload CSV:** Test your best model on a completely new file
+- **Manual Entry:** Enter feature values manually for an instant single prediction
 
 ### 4. AI Assistant 🤖
 - Click **floating AI button** (bottom-right)
@@ -66,7 +66,7 @@ Navigate to: **http://localhost:5173**
 
 ## 🔒 System Constraints (Limits)
 
-- **Maximum Upload Limit**: Data files larger than `100MB` will be explicitly blocked at the API layer.
+- **Maximum Upload Limit**: Data files larger than `200MB` will be explicitly blocked at the API layer.
 - **Max Excel Sheets**: Workbooks with `> 10` individual sheets are rejected prior to processing to prevent unmanaged RAM allocation.
 - **Cache Persistence**: Background automation clears modified dataset history that lapses `24 hours` of inactivity.
 

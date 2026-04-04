@@ -39,13 +39,13 @@ async def upload_file(file: UploadFile = File(...)):
     if not (filename.endswith('.csv') or filename.endswith('.xlsx') or filename.endswith('.xls')):
         raise HTTPException(status_code=400, detail="Only CSV and Excel (.xlsx, .xls) files are supported")
         
-    # Security: Enforce 100MB hard limit on the backend to prevent server memory exhaustion
+    # Security: Enforce 200MB hard limit on the backend to prevent server memory exhaustion
     file.file.seek(0, 2)
     file_size = file.file.tell()
     file.file.seek(0)
     
-    if file_size > 100 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="File is too large! Please upload a dataset under 100MB.")
+    if file_size > 200 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File is too large! Please upload a dataset under 200MB.")
     
     try:
         contents = await file.read()

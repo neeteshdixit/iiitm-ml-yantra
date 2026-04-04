@@ -13,7 +13,7 @@ export interface FileUploaderProps {
 export const FileUploader: React.FC<FileUploaderProps> = ({
     onFileSelect,
     acceptedFormats = ['.csv'],
-    maxSizeMB = 100,
+    maxSizeMB = 200,
     className = '',
 }) => {
     const [isDragging, setIsDragging] = useState(false)

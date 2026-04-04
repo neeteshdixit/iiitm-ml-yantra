@@ -12,7 +12,7 @@ class APIClient {
             headers: {
                 'Content-Type': 'application/json',
             },
-            timeout: 30000, // 30 seconds
+            timeout: 300000, // 5 minutes to accommodate large dataset processing and model training
         })
 
         // Response interceptor for error handling
@@ -411,6 +411,7 @@ class APIClient {
         problemType: 'classification' | 'regression'
         algorithms: string[]
         trainTestSplit: number
+        validationSplit: number
         scaling: boolean
     }): Promise<{
         trainingId: string
@@ -428,6 +429,15 @@ class APIClient {
         }>
         bestModel: string
         message: string
+        classDistribution?: Record<string, number>
+        imbalanceRatio?: number
+        smoteApplied?: boolean
+        validationMetrics?: {
+            metrics: Record<string, number | null>
+            confusionMatrix?: number[][] | null
+            validationRows: number
+            bestModelName: string
+        }
     }> {
         const response = await this.client.post(`/train/start/${sessionId}`, config)
         return response.data
@@ -543,6 +553,37 @@ class APIClient {
             features,
             target
         })
+        return response.data
+    }
+
+    // Validation on unseen data
+    async validateOnUnseenData(trainingId: string, modelId: string, file: File): Promise<{
+        totalRows: number
+        validRows: number
+        predictions: any[]
+        probabilities: any[] | null
+        hasTarget: boolean
+        metrics: Record<string, number | null> | null
+        confusionMatrix: number[][] | null
+    }> {
+        const formData = new FormData()
+        formData.append('file', file)
+        const response = await this.client.post(
+            `/train/validate-unseen/${trainingId}/${modelId}`,
+            formData,
+            { headers: { 'Content-Type': 'multipart/form-data' } }
+        )
+        return response.data
+    }
+
+    async predictManual(trainingId: string, modelId: string, values: Record<string, number>): Promise<{
+        prediction: any
+        probabilities: number[] | null
+    }> {
+        const response = await this.client.post(
+            `/train/predict-manual/${trainingId}/${modelId}`,
+            { values }
+        )
         return response.data
     }
 }
