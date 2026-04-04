@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import AppHeader from '../components/AppHeader'
 import toast from 'react-hot-toast'
 import apiClient from '../services/api'
@@ -206,6 +206,8 @@ function AllMetricsGrid({ models, isClassification }: { models: ModelResult[]; i
 /* ════════════════════════ MAIN RESULTS PAGE ════════════════════════ */
 export default function Results() {
     const navigate = useNavigate()
+    const location = useLocation()
+    const panelPrefix = location.pathname.startsWith('/non-tech') ? '/non-tech' : '/tech'
     const [activeTab, setActiveTab] = useState<VisualizationTab>('confusion')
     const [trainingResults, setTrainingResults] = useState<any>(null)
     const [models, setModels] = useState<ModelResult[]>([])
@@ -252,7 +254,7 @@ export default function Results() {
         }
 
         toast.error('No training results found. Please train a model first.')
-        navigate('/train')
+        navigate(`${panelPrefix}/train`)
     }
 
     const handleDownloadModel = async (modelId: string) => {
@@ -347,7 +349,7 @@ export default function Results() {
                                 Export CSV
                             </button>
                             <button
-                                onClick={() => navigate('/train')}
+                                onClick={() => navigate(`${panelPrefix}/train`)}
                                 className="flex items-center justify-center gap-2 rounded-xl h-10 px-4 bg-primary text-white text-sm font-bold hover:opacity-90 transition-opacity"
                             >
                                 <span className="material-symbols-outlined text-lg">replay</span>

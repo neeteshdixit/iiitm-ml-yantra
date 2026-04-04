@@ -209,6 +209,59 @@ class APIClient {
         return response.data
     }
 
+    // Line Plot Data
+    async getLinePlotData(sessionId: string, xCol: string, yCol: string): Promise<{
+        x_col: string
+        y_col: string
+        data: Record<string, any>[]
+    }> {
+        const response = await this.client.get(`/lineplot/${sessionId}`, { params: { x_col: xCol, y_col: yCol } })
+        return response.data
+    }
+
+    // Box Plot Data
+    async getBoxPlotData(sessionId: string, column: string): Promise<{
+        column: string
+        min: number
+        q1: number
+        median: number
+        q3: number
+        max: number
+        outliers: number[]
+    }> {
+        const response = await this.client.get(`/boxplot/${sessionId}`, { params: { column } })
+        return response.data
+    }
+
+    async getHistogramData(sessionId: string, column: string, bins: number = 20): Promise<{
+        column: string
+        counts: number[]
+        bins: number[]
+    }> {
+        const response = await this.client.get(`/histogram/${sessionId}`, { params: { column, bins } })
+        return response.data
+    }
+
+    async getCountPlotData(sessionId: string, column: string): Promise<{
+        column: string
+        labels: string[]
+        counts: number[]
+    }> {
+        const response = await this.client.get(`/countplot/${sessionId}`, { params: { column } })
+        return response.data
+    }
+
+    async getBarPlotData(sessionId: string, xCol: string, yCol: string, agg: string = 'mean'): Promise<{
+        x_col: string
+        y_col: string
+        agg: string
+        labels: string[]
+        values: number[]
+    }> {
+        const response = await this.client.get(`/barplot/${sessionId}`, { params: { x_col: xCol, y_col: yCol, agg } })
+        return response.data
+    }
+
     // Data Cleaning Operations
     async handleNulls(
         sessionId: string,
@@ -556,6 +609,19 @@ class APIClient {
         return response.data
     }
 
+    async recommendVisualization(
+        sessionId: string,
+        plotType: string,
+        selectedColumns: string[]
+    ): Promise<{ response: string }> {
+        const response = await this.client.post('/ai/recommend-visualization', {
+            session_id: sessionId,
+            plot_type: plotType,
+            selected_columns: selectedColumns
+        })
+        return response.data
+    }
+
     // Validation on unseen data
     async validateOnUnseenData(trainingId: string, modelId: string, file: File): Promise<{
         totalRows: number
@@ -586,7 +652,151 @@ class APIClient {
         )
         return response.data
     }
+
+    // ═══════════════════════ AutoPilot ═══════════════════════
+
+    async analyzeForAutoPilot(sessionId: string): Promise<{
+        session_id: string
+        rows: number
+        columns: number
+        column_names: string[]
+        column_types: Record<string, string>
+        null_summary: Record<string, number>
+        duplicate_rows: number
+        numeric_columns: string[]
+        categorical_columns: string[]
+        target_suggestions: Array<{
+            column: string
+            confidence: number
+            problem_type: string
+            reason: string
+        }>
+    }> {
+        const response = await this.client.post(`/autopilot/analyze/${sessionId}`)
+        return response.data
+    }
+
+    async runAutoPilot(sessionId: string, config: {
+        target: string
+        problem_type: string
+    }): Promise<{
+        autopilot_id: string
+        session_id: string
+        problem_type: string
+        pipeline_log: Array<{
+            step: string
+            category: string
+            description: string
+            details?: Record<string, any>
+            duration_ms?: number
+        }>
+        before_summary: Record<string, any>
+        after_summary: Record<string, any>
+        eda_charts: Array<{
+            chart_type: string
+            title: string
+            data: any
+        }>
+        training_results: {
+            models: Array<{
+                modelId: string
+                name: string
+                algorithm: string
+                metrics: Record<string, number | null>
+                confusionMatrix?: number[][]
+                featureImportance?: Record<string, number>
+                trainingTime: number
+                hyperparameters?: Record<string, any>
+                isBest: boolean
+            }>
+            bestModel: string
+            problemType: string
+            smoteApplied?: boolean
+        }
+        best_model_name: string
+        best_model_id: string
+        best_metrics: Record<string, number | null>
+        feature_importance?: Record<string, number>
+    }> {
+        const response = await this.client.post(`/autopilot/run/${sessionId}`, config)
+        return response.data
+    }
+
+    async downloadNotebook(autopilotId: string): Promise<Blob> {
+        const response = await this.client.get(`/autopilot/download-notebook/${autopilotId}`, {
+            responseType: 'blob',
+        })
+        return response.data
+    }
+
+    async downloadAutoPilotCleaned(autopilotId: string): Promise<Blob> {
+        const response = await this.client.get(`/autopilot/download-cleaned/${autopilotId}`, {
+            responseType: 'blob',
+        })
+        return response.data
+    }
+
+    async downloadAutoPilotModel(autopilotId: string): Promise<Blob> {
+        const response = await this.client.get(`/autopilot/download-model/${autopilotId}`, {
+            responseType: 'blob',
+        })
+        return response.data
+    }
+
+    // ─── Report Studio ─────────────────────────────────────────
+
+    async listReportTemplates(): Promise<any> {
+        const response = await this.client.get('/reports/templates')
+        return response.data
+    }
+
+    async generateReport(sessionId: string, templateId: string, options: {
+        customTitle?: string; useAi?: boolean; autopilotId?: string;
+    } = {}): Promise<any> {
+        const response = await this.client.post('/reports/generate', {
+            session_id: sessionId,
+            template_id: templateId,
+            custom_title: options.customTitle,
+            use_ai: options.useAi ?? false,
+            autopilot_id: options.autopilotId,
+        })
+        return response.data
+    }
+
+    async generateCustomReport(sessionId: string, description: string, useAi: boolean = true, blueprint?: any): Promise<any> {
+        const response = await this.client.post('/reports/generate-custom', {
+            session_id: sessionId,
+            description,
+            use_ai: useAi,
+            blueprint: blueprint
+        })
+        return response.data
+    }
+
+    async suggestReport(sessionId: string, description: string): Promise<any> {
+        const response = await this.client.post('/reports/suggest', {
+            session_id: sessionId,
+            description,
+        })
+        return response.data
+    }
+
+    async refineReport(reportId: string, feedback: string): Promise<any> {
+        const response = await this.client.post('/reports/refine', {
+            report_id: reportId,
+            feedback,
+        })
+        return response.data
+    }
+
+    async downloadReport(reportId: string, format: 'pdf' | 'md' | 'pptx'): Promise<Blob> {
+        const response = await this.client.get(`/reports/download/${reportId}/${format}`, {
+            responseType: 'blob',
+        })
+        return response.data
+    }
 }
 
 export const apiClient = new APIClient()
 export default apiClient
+

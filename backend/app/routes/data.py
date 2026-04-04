@@ -54,6 +54,7 @@ async def upload_file(file: UploadFile = File(...)):
             # Single CSV file
             df = pd.read_csv(io.BytesIO(contents))
             session_id = dataset_manager.create_session(df)
+            dataset_manager.filenames[session_id] = file.filename
             
             return {
                 "session_id": session_id,
@@ -78,6 +79,7 @@ async def upload_file(file: UploadFile = File(...)):
                 # Single sheet - treat like CSV
                 df = pd.read_excel(io.BytesIO(contents), sheet_name=sheet_names[0])
                 session_id = dataset_manager.create_session(df)
+                dataset_manager.filenames[session_id] = file.filename
                 
                 return {
                     "session_id": session_id,
@@ -186,7 +188,11 @@ async def get_preview(session_id: str, num_rows: int = 5):
     """Get preview of dataset"""
     try:
         df = dataset_manager.get_dataset(session_id)
-        preview_data = df.head(num_rows).to_dict(orient='records')
+        import pandas as pd
+        import numpy as np
+        head_df = df.head(num_rows).copy()
+        clean_df = head_df.astype(object).where(pd.notna(head_df), None)
+        preview_data = clean_df.to_dict(orient='records')
         
         return PreviewResponse(
             data=preview_data,
@@ -220,7 +226,9 @@ async def get_nulls_preview(session_id: str, columns: Optional[str] = None):
         
         # Replace NaN with None for JSON serialization
         import numpy as np
-        clean_data = null_rows.head(50).replace({np.nan: None})
+        import pandas as pd
+        head_df = null_rows.head(50).copy()
+        clean_data = head_df.astype(object).where(pd.notna(head_df), None)
         
         return {
             "data": clean_data.to_dict(orient='records'),
@@ -244,7 +252,9 @@ async def get_duplicates_preview(session_id: str):
         duplicate_rows = df[df.duplicated(keep='first')]
         
         import numpy as np
-        clean_data = duplicate_rows.head(50).replace({np.nan: None})
+        import pandas as pd
+        head_df = duplicate_rows.head(50).copy()
+        clean_data = head_df.astype(object).where(pd.notna(head_df), None)
         
         return {
             "data": clean_data.to_dict(orient='records'),
@@ -391,6 +401,164 @@ async def get_scatter_data(session_id: str, x_col: Optional[str] = None, y_col: 
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting scatter data: {str(e)}")
+
+
+@router.get("/lineplot/{session_id}")
+async def get_lineplot_data(session_id: str, x_col: str, y_col: str):
+    """Get sampled line plot data for trend analysis"""
+    try:
+        df = dataset_manager.get_dataset(session_id)
+        if x_col not in df.columns or y_col not in df.columns:
+            raise HTTPException(status_code=404, detail="Columns not found")
+            
+        sample = df[[x_col, y_col]].dropna()
+        
+        # Sort by x_col if numeric or datetime to show real trend
+        import pandas as pd
+        if pd.api.types.is_numeric_dtype(sample[x_col]) or pd.api.types.is_datetime64_any_dtype(sample[x_col]):
+            sample = sample.sort_values(by=x_col)
+            
+        # Sample strategically to prevent frontend crushing (max 200 points)
+        if len(sample) > 200:
+            sample = sample.iloc[::max(1, len(sample) // 200)].head(200)
+            
+        return {
+            "x_col": x_col,
+            "y_col": y_col,
+            "data": sample.to_dict(orient="records")
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting lineplot data: {str(e)}")
+
+
+@router.get("/boxplot/{session_id}")
+async def get_boxplot_data(session_id: str, column: str):
+    """Calculate 5-number summary and outliers for a boxplot"""
+    try:
+        import pandas as pd
+        df = dataset_manager.get_dataset(session_id)
+        if column not in df.columns:
+            raise HTTPException(status_code=404, detail="Column not found")
+            
+        col = df[column]
+        if not pd.api.types.is_numeric_dtype(col):
+            raise HTTPException(status_code=400, detail="Column must be numeric for a box plot.")
+            
+        clean = col.dropna()
+        if len(clean) == 0:
+            return {"min": 0, "q1": 0, "median": 0, "q3": 0, "max": 0, "outliers": []}
+            
+        q1 = float(clean.quantile(0.25))
+        median = float(clean.median())
+        q3 = float(clean.quantile(0.75))
+        
+        iqr = q3 - q1
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+        
+        # Exclude outliers from calculating the actual min/max "whisker" bounds
+        in_bounds = clean[(clean >= lower_bound) & (clean <= upper_bound)]
+        whisker_min = float(in_bounds.min()) if not in_bounds.empty else q1
+        whisker_max = float(in_bounds.max()) if not in_bounds.empty else q3
+        
+        # Collect top 50 extreme outliers to render as dots
+        outliers_series = clean[(clean < lower_bound) | (clean > upper_bound)]
+        outliers = [float(x) for x in outliers_series.head(50).tolist()]
+        
+        return {
+            "column": column,
+            "min": whisker_min,
+            "q1": q1,
+            "median": median,
+            "q3": q3,
+            "max": whisker_max,
+            "outliers": outliers
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error calculating boxplot: {str(e)}")
+
+
+@router.get("/histogram/{session_id}")
+async def get_histogram_data(session_id: str, column: str, bins: int = 20):
+    """Generate fixed-bin histogram distribution"""
+    try:
+        import pandas as pd
+        import numpy as np
+        df = dataset_manager.get_dataset(session_id)
+        if column not in df.columns:
+            raise HTTPException(status_code=404, detail="Column not found")
+        if not pd.api.types.is_numeric_dtype(df[column]):
+            raise HTTPException(status_code=400, detail="Column must be numeric for a Histogram.")
+            
+        clean = df[column].dropna()
+        if len(clean) == 0:
+            return {"column": column, "counts": [], "bins": []}
+            
+        counts, bin_edges = np.histogram(clean, bins=max(10, min(bins, 50)))
+        return {"column": column, "counts": [int(x) for x in counts], "bins": [float(x) for x in bin_edges]}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error calculating histogram: {str(e)}")
+
+
+@router.get("/countplot/{session_id}")
+async def get_countplot_data(session_id: str, column: str):
+    """Generate categorical frequencies"""
+    try:
+        import pandas as pd
+        df = dataset_manager.get_dataset(session_id)
+        if column not in df.columns:
+            raise HTTPException(status_code=404, detail="Column not found")
+            
+        clean = df[column].dropna()
+        v_counts = clean.value_counts().head(25) # Top 25 prevent UI explosion
+        return {
+            "column": column,
+            "labels": [str(x) for x in v_counts.index.tolist()],
+            "counts": [int(x) for x in v_counts.tolist()]
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error calculating countplot: {str(e)}")
+
+
+@router.get("/barplot/{session_id}")
+async def get_barplot_data(session_id: str, x_col: str, y_col: str, agg: str = 'mean'):
+    """Generate aggregated bar plot comparisons"""
+    try:
+        import pandas as pd
+        df = dataset_manager.get_dataset(session_id)
+        if x_col not in df.columns or y_col not in df.columns:
+            raise HTTPException(status_code=404, detail="Columns not found")
+            
+        if not pd.api.types.is_numeric_dtype(df[y_col]):
+            raise HTTPException(status_code=400, detail="Y-Axis Column must be numeric for Bar Plot.")
+            
+        clean = df[[x_col, y_col]].dropna()
+        agg_func = agg.lower()
+        if agg_func not in ['mean', 'median', 'sum', 'max', 'min', 'count']:
+            agg_func = 'mean'
+            
+        grouped = clean.groupby(x_col)[y_col].agg(agg_func).sort_values(ascending=False)
+        top_grouped = grouped.head(25) # Return top 25 categories
+        
+        return {
+            "x_col": x_col,
+            "y_col": y_col,
+            "agg": agg_func,
+            "labels": [str(x) for x in top_grouped.index.tolist()],
+            "values": [float(x) for x in top_grouped.tolist()]
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error calculating barplot: {str(e)}")
 
 
 @router.post("/clean/nulls/{session_id}", response_model=CleaningResponse)

@@ -115,3 +115,54 @@ class TrainingResponse(BaseModel):
     imbalanceRatio: Optional[float] = None
     smoteApplied: Optional[bool] = None
     validationMetrics: Optional[Dict[str, Any]] = None  # Metrics on held-out validation set
+
+
+# ═══════════════════════ AutoPilot Models ═══════════════════════
+
+class AutoPilotRunRequest(BaseModel):
+    target: str
+    problem_type: str  # 'classification' or 'regression'
+
+class TargetSuggestion(BaseModel):
+    column: str
+    confidence: float  # 0.0 - 1.0
+    problem_type: str  # 'classification' or 'regression'
+    reason: str
+
+class AutoPilotAnalyzeResponse(BaseModel):
+    session_id: str
+    rows: int
+    columns: int
+    column_names: List[str]
+    column_types: Dict[str, str]
+    null_summary: Dict[str, int]
+    duplicate_rows: int
+    numeric_columns: List[str]
+    categorical_columns: List[str]
+    target_suggestions: List[TargetSuggestion]
+
+class PipelineStep(BaseModel):
+    step: str
+    category: str  # 'clean', 'encode', 'eda', 'train'
+    description: str
+    details: Optional[Dict[str, Any]] = None
+    duration_ms: Optional[int] = None
+
+class EDAChart(BaseModel):
+    chart_type: str  # 'histogram', 'countplot', 'boxplot', 'correlation', 'scatter', 'feature_importance'
+    title: str
+    data: Any
+
+class AutoPilotRunResponse(BaseModel):
+    autopilot_id: str
+    session_id: str
+    problem_type: str
+    pipeline_log: List[PipelineStep]
+    before_summary: Dict[str, Any]
+    after_summary: Dict[str, Any]
+    eda_charts: List[EDAChart]
+    training_results: Dict[str, Any]  # models, best model, metrics
+    best_model_name: str
+    best_model_id: str
+    best_metrics: Dict[str, Optional[float]]
+    feature_importance: Optional[Dict[str, float]] = None

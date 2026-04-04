@@ -130,7 +130,19 @@ class ModelTrainer:
         # Prepare data
         X = df[features].copy()
         y = df[target].copy()
-        
+
+        # Replace inf/-inf with NaN
+        X = X.replace([np.inf, -np.inf], np.nan)
+
+        # Attempt to coerce any string-numeric columns (e.g., "9,44,999")
+        for col in X.columns:
+            if X[col].dtype == 'object':
+                try:
+                    X[col] = X[col].str.replace(r'[₹$€£¥,\s]', '', regex=True)
+                    X[col] = pd.to_numeric(X[col], errors='coerce')
+                except Exception:
+                    pass
+
         # Handle missing values (drop rows with NaN)
         mask = X.notna().all(axis=1) & y.notna()
         X = X[mask]

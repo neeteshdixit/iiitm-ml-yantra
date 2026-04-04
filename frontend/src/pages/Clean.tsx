@@ -138,7 +138,7 @@ function OperationsToolbar({
             } else if (activeOp === 'normalize') {
                 const numericCols = stats?.column_types
                     ? Object.entries(stats.column_types as Record<string, string>)
-                        .filter(([, t]) => ['int64', 'float64', 'int32', 'float32'].includes(t))
+                        .filter(([, t]) => /int|float/i.test(t))
                         .map(([col]) => col)
                     : []
                 if (numericCols.length === 0) { toast.error('No numeric columns to normalize'); return }
@@ -217,11 +217,10 @@ function OperationsToolbar({
                         onClick={onUndo}
                         disabled={!canUndo}
                         title="Undo (Ctrl+Z)"
-                        className={`group relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                            canUndo
+                        className={`group relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${canUndo
                                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-600 hover:shadow-sm'
                                 : 'bg-slate-50 dark:bg-slate-900 text-slate-300 dark:text-slate-700 cursor-not-allowed'
-                        }`}
+                            }`}
                     >
                         <span className="material-symbols-outlined text-base">undo</span>
                         <span className="hidden sm:inline">Undo</span>
@@ -230,11 +229,10 @@ function OperationsToolbar({
                         onClick={onRedo}
                         disabled={!canRedo}
                         title="Redo (Ctrl+Y)"
-                        className={`group relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                            canRedo
+                        className={`group relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${canRedo
                                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 hover:shadow-sm'
                                 : 'bg-slate-50 dark:bg-slate-900 text-slate-300 dark:text-slate-700 cursor-not-allowed'
-                        }`}
+                            }`}
                     >
                         <span className="material-symbols-outlined text-base">redo</span>
                         <span className="hidden sm:inline">Redo</span>
@@ -248,11 +246,10 @@ function OperationsToolbar({
                     <button
                         key={op.id}
                         onClick={() => setActiveOp(activeOp === op.id ? null : op.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                            activeOp === op.id
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${activeOp === op.id
                                 ? `bg-gradient-to-r ${op.color} text-white shadow-lg shadow-primary/15 scale-[1.03]`
                                 : `${op.bg} ${op.text} hover:shadow-md hover:scale-[1.02] border border-transparent hover:border-slate-200 dark:hover:border-slate-700`
-                        }`}
+                            }`}
                     >
                         <span className="material-symbols-outlined text-lg">{op.icon}</span>
                         <span className="hidden sm:inline">{op.label}</span>
@@ -293,11 +290,10 @@ function OperationsToolbar({
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Select Columns</label>
                                 <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto custom-scrollbar">
                                     {columns.map((col) => (
-                                        <label key={col} className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg cursor-pointer transition-all border ${
-                                            selectedColumns.includes(col)
+                                        <label key={col} className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg cursor-pointer transition-all border ${selectedColumns.includes(col)
                                                 ? 'bg-primary/10 border-primary/30 text-primary font-semibold'
                                                 : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-primary/30'
-                                        }`}>
+                                            }`}>
                                             <input
                                                 type="checkbox"
                                                 className="rounded text-primary focus:ring-primary size-3"
@@ -452,12 +448,12 @@ function OperationsToolbar({
                                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">
                                             {filterOperator === 'between' ? 'Min Value'
                                                 : filterOperator === 'date_between' ? 'Start Date'
-                                                : ['in', 'not_in'].includes(filterOperator) ? 'Values (comma-separated)'
-                                                : ['top_n', 'bottom_n'].includes(filterOperator) ? 'N (count)'
-                                                : filterOperator === 'outliers' ? 'Std Deviations (default: 2)'
-                                                : filterOperator === 'percentile' ? 'Percentile (0-100)'
-                                                : ['before', 'after'].includes(filterOperator) ? 'Date'
-                                                : 'Value'}
+                                                    : ['in', 'not_in'].includes(filterOperator) ? 'Values (comma-separated)'
+                                                        : ['top_n', 'bottom_n'].includes(filterOperator) ? 'N (count)'
+                                                            : filterOperator === 'outliers' ? 'Std Deviations (default: 2)'
+                                                                : filterOperator === 'percentile' ? 'Percentile (0-100)'
+                                                                    : ['before', 'after'].includes(filterOperator) ? 'Date'
+                                                                        : 'Value'}
                                         </label>
                                         <input
                                             type={['before', 'after', 'date_between'].includes(filterOperator) ? 'date' : 'text'}
@@ -465,11 +461,11 @@ function OperationsToolbar({
                                             onChange={(e) => setFilterValue(e.target.value)}
                                             placeholder={
                                                 ['in', 'not_in'].includes(filterOperator) ? 'e.g. Apple, Banana, Cherry'
-                                                : filterOperator === 'regex' ? 'e.g. ^Dr\\.' 
-                                                : filterOperator === 'outliers' ? '2'
-                                                : filterOperator === 'percentile' ? '90'
-                                                : ['top_n', 'bottom_n'].includes(filterOperator) ? '10'
-                                                : 'Enter value...'
+                                                    : filterOperator === 'regex' ? 'e.g. ^Dr\\.'
+                                                        : filterOperator === 'outliers' ? '2'
+                                                            : filterOperator === 'percentile' ? '90'
+                                                                : ['top_n', 'bottom_n'].includes(filterOperator) ? '10'
+                                                                    : 'Enter value...'
                                             }
                                             className="w-full text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-primary focus:border-primary px-3 py-2.5"
                                         />
@@ -579,7 +575,7 @@ function OperationsToolbar({
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Numeric Column</label>
                                 <select value={outlierColumn} onChange={(e) => setOutlierColumn(e.target.value)} className="w-full text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5">
                                     <option value="">Select column...</option>
-                                    {columns.filter(col => stats?.column_types && ['int64', 'float64', 'int32', 'float32'].includes((stats.column_types as Record<string, string>)[col])).map(col => <option key={col} value={col}>{col}</option>)}
+                                    {columns.filter(col => stats?.column_types && /int|float/i.test((stats.column_types as Record<string, string>)[col])).map(col => <option key={col} value={col}>{col}</option>)}
                                 </select>
                             </div>
                             <div>
@@ -660,7 +656,7 @@ function OperationsToolbar({
                                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Numeric Column</label>
                                     <select value={binColumn} onChange={(e) => setBinColumn(e.target.value)} className="w-full text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5">
                                         <option value="">Select column...</option>
-                                        {columns.filter(col => stats?.column_types && ['int64', 'float64', 'int32', 'float32'].includes((stats.column_types as Record<string, string>)[col])).map(col => <option key={col} value={col}>{col}</option>)}
+                                        {columns.filter(col => stats?.column_types && /int|float/i.test((stats.column_types as Record<string, string>)[col])).map(col => <option key={col} value={col}>{col}</option>)}
                                     </select>
                                 </div>
                                 <div>
@@ -877,7 +873,7 @@ function AIAssistantPanel({ stats, operationLog }: { stats: any; operationLog: O
                             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                                 {stats ? (() => {
                                     const colTypes = Object.values(stats.column_types || {}) as string[];
-                                    const numCount = colTypes.filter(t => ['int64', 'float64', 'int32', 'float32'].includes(t)).length;
+                                    const numCount = colTypes.filter(t => /int|float/i.test(t)).length;
                                     const catCount = colTypes.length - numCount;
                                     const totalNulls = Object.values(stats.null_counts || {}).reduce((a: any, b: any) => a + (b as number), 0) as number;
                                     const dupes = stats.duplicate_rows || 0;
@@ -1034,7 +1030,9 @@ function getTimeAgo(date: Date): string {
 
 // ─── Main Clean Page ──────────────────────────────────────────────
 export default function Clean() {
-    const [sessionId, setSessionId] = useState<string | null>(null)
+    const [sessionId, setSessionId] = useState<string | null>(() => {
+        return localStorage.getItem('ml_yantra_session_id') || null
+    })
     const [previewData, setPreviewData] = useState<any[]>([])
     const [totalRows, setTotalRows] = useState(0)
     const [stats, setStats] = useState<any>(null)
@@ -1045,11 +1043,27 @@ export default function Clean() {
     const [correlationData, setCorrelationData] = useState<{ columns: string[]; matrix: number[][] } | null>(null)
     const [allDistributions, setAllDistributions] = useState<Record<string, any>>({})
     const [scatterData, setScatterData] = useState<{ pairs: { x_col: string; y_col: string; x: number[]; y: number[] }[]; columns: string[] } | null>(null)
-    
+    const [linePlotData, setLinePlotData] = useState<{ x_col: string; y_col: string; data: any[] } | null>(null)
+    const [boxPlotData, setBoxPlotData] = useState<{ column: string; min: number; q1: number; median: number; q3: number; max: number; outliers: number[] } | null>(null)
+    const [histogramData, setHistogramData] = useState<{ column: string; counts: number[]; bins: number[] } | null>(null)
+    const [countPlotData, setCountPlotData] = useState<{ column: string; labels: string[]; counts: number[] } | null>(null)
+    const [barPlotData, setBarPlotData] = useState<{ x_col: string; y_col: string; agg: string; labels: string[]; values: number[] } | null>(null)
+    const [histError, setHistError] = useState<string | null>(null)
+    const [countError, setCountError] = useState<string | null>(null)
+    const [barError, setBarError] = useState<string | null>(null)
+
     // Interactive Visualization State
-    const [vizMode, setVizMode] = useState<string>('none') // 'none', 'full', 'overview', 'distribution', 'heatmap', 'scatter'
+    const [vizMode, setVizMode] = useState<string>('none') // 'none', 'full', 'overview', 'distribution', 'heatmap', 'scatter', 'lineplot', 'boxplot', 'histogram', 'countplot', 'barplot'
     const [scatterX, setScatterX] = useState<string>('')
     const [scatterY, setScatterY] = useState<string>('')
+    const [lineX, setLineX] = useState<string>('')
+    const [lineY, setLineY] = useState<string>('')
+    const [boxCol, setBoxCol] = useState<string>('')
+    const [histCol, setHistCol] = useState<string>('')
+    const [countCol, setCountCol] = useState<string>('')
+    const [barXCol, setBarXCol] = useState<string>('')
+    const [barYCol, setBarYCol] = useState<string>('')
+    const [barAgg, setBarAgg] = useState<string>('mean')
     const [selectedDistributions, setSelectedDistributions] = useState<string[]>([])
     const [distLoading, setDistLoading] = useState(false)
 
@@ -1193,9 +1207,30 @@ export default function Clean() {
         if (sessionId) loadSessionData(sessionId, activeOp)
     }, [activeOp, sessionId])
 
+    // On mount: validate saved session still exists on backend
+    useEffect(() => {
+        const savedId = localStorage.getItem('ml_yantra_session_id')
+        if (savedId) {
+            // Just validate the session exists — loadSessionData is already triggered
+            // by the [activeOp, sessionId] effect above
+            apiClient.getStatistics(savedId)
+                .then(() => {
+                    refreshHistory(savedId)
+                })
+                .catch(() => {
+                    // Backend no longer has this session (server restarted)
+                    localStorage.removeItem('ml_yantra_session_id')
+                    setSessionId(null)
+                })
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
     // Fetch correlation + scatter + all distributions when visualize tab is selected
     useEffect(() => {
         if (sessionId && activeOp === 'visualize') {
+            // Always refresh stats when entering visualize — ensures post-encoding columns appear
+            apiClient.getStatistics(sessionId).then(setStats).catch(console.error)
             apiClient.getCorrelation(sessionId).then(setCorrelationData).catch(console.error)
             apiClient.getScatterData(sessionId).then(setScatterData).catch(console.error)
 
@@ -1218,6 +1253,70 @@ export default function Clean() {
             }
         }
     }, [sessionId, activeOp, stats])
+
+    useEffect(() => {
+        if (vizMode === 'lineplot' && lineX && lineY && sessionId) {
+            apiClient.getLinePlotData(sessionId, lineX, lineY).then(setLinePlotData).catch(console.error)
+        } else {
+            setLinePlotData(null)
+        }
+    }, [vizMode, lineX, lineY, sessionId])
+
+    useEffect(() => {
+        if (vizMode === 'boxplot' && boxCol && sessionId) {
+            apiClient.getBoxPlotData(sessionId, boxCol).then(setBoxPlotData).catch(console.error)
+        } else {
+            setBoxPlotData(null)
+        }
+    }, [vizMode, boxCol, sessionId])
+
+    useEffect(() => {
+        if (vizMode === 'histogram' && histCol && sessionId) {
+            setHistError(null)
+            setHistogramData(null)
+            apiClient.getHistogramData(sessionId, histCol, 30)
+                .then(data => setHistogramData(data))
+                .catch((err) => {
+                    const msg = err?.response?.data?.detail || err?.message || 'Failed to compute histogram.'
+                    setHistError(msg)
+                })
+        } else {
+            setHistogramData(null)
+            setHistError(null)
+        }
+    }, [vizMode, histCol, sessionId])
+
+    useEffect(() => {
+        if (vizMode === 'countplot' && countCol && sessionId) {
+            setCountError(null)
+            setCountPlotData(null)
+            apiClient.getCountPlotData(sessionId, countCol)
+                .then(data => setCountPlotData(data))
+                .catch((err) => {
+                    const msg = err?.response?.data?.detail || err?.message || 'Failed to compute count plot.'
+                    setCountError(msg)
+                })
+        } else {
+            setCountPlotData(null)
+            setCountError(null)
+        }
+    }, [vizMode, countCol, sessionId])
+
+    useEffect(() => {
+        if (vizMode === 'barplot' && barXCol && barYCol && sessionId) {
+            setBarError(null)
+            setBarPlotData(null)
+            apiClient.getBarPlotData(sessionId, barXCol, barYCol, barAgg)
+                .then(data => setBarPlotData(data))
+                .catch((err) => {
+                    const msg = err?.response?.data?.detail || err?.message || 'Failed to compute bar plot.'
+                    setBarError(msg)
+                })
+        } else {
+            setBarPlotData(null)
+            setBarError(null)
+        }
+    }, [vizMode, barXCol, barYCol, barAgg, sessionId])
 
     // Keyboard shortcuts for Undo/Redo
     useEffect(() => {
@@ -1383,28 +1482,28 @@ export default function Clean() {
             />
             {/* Upload Drop Zone — only on Preview tab or when no session */}
             {(!sessionId || activeOp === 'preview') && (
-            <div className="p-6">
-                <div
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={handleFileDrop}
-                    className="bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-8 flex flex-col items-center justify-center text-center group cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => document.getElementById('file-input')?.click()}
-                >
-                    <div className="size-16 bg-primary/5 rounded-full flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
-                        <span className="material-symbols-outlined text-4xl">cloud_upload</span>
+                <div className="p-6">
+                    <div
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={handleFileDrop}
+                        className="bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-8 flex flex-col items-center justify-center text-center group cursor-pointer hover:border-primary/50 transition-colors"
+                        onClick={() => document.getElementById('file-input')?.click()}
+                    >
+                        <div className="size-16 bg-primary/5 rounded-full flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
+                            <span className="material-symbols-outlined text-4xl">cloud_upload</span>
+                        </div>
+                        <h2 className="text-xl font-bold mb-2">Add New Data Source</h2>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">Drag and drop your CSV or Excel file here. Multi-sheet Excel files will be auto-detected.</p>
+                        <button className="mt-6 px-6 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-950 rounded-xl text-sm font-bold">Browse Files</button>
+                        <input
+                            id="file-input"
+                            type="file"
+                            accept=".csv,.xlsx,.xls"
+                            className="hidden"
+                            onChange={handleFileInput}
+                        />
                     </div>
-                    <h2 className="text-xl font-bold mb-2">Add New Data Source</h2>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">Drag and drop your CSV or Excel file here. Multi-sheet Excel files will be auto-detected.</p>
-                    <button className="mt-6 px-6 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-950 rounded-xl text-sm font-bold">Browse Files</button>
-                    <input
-                        id="file-input"
-                        type="file"
-                        accept=".csv,.xlsx,.xls"
-                        className="hidden"
-                        onChange={handleFileInput}
-                    />
                 </div>
-            </div>
             )}
             {/* Hidden file input for other tabs — allows re-upload without showing the card */}
             {sessionId && activeOp !== 'preview' && (
@@ -1420,11 +1519,10 @@ export default function Clean() {
                                 <button
                                     key={sheet.sheet_name}
                                     onClick={() => handleSheetSelect(sheet.session_id, sheet.sheet_name)}
-                                    className={`px-4 py-3 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
-                                        activeSheetName === sheet.sheet_name
+                                    className={`px-4 py-3 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${activeSheetName === sheet.sheet_name
                                             ? 'border-primary text-primary font-bold'
                                             : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                                    }`}
+                                        }`}
                                 >
                                     <span className="material-symbols-outlined text-base">table_chart</span>
                                     {sheet.sheet_name}
@@ -1475,11 +1573,10 @@ export default function Clean() {
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Select Sheets to Merge</label>
                                 <div className="flex flex-wrap gap-2">
                                     {sheets.map(sheet => (
-                                        <label key={sheet.sheet_name} className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer text-sm font-medium transition-all ${
-                                            mergeSelectedSheets.includes(sheet.sheet_name)
+                                        <label key={sheet.sheet_name} className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer text-sm font-medium transition-all ${mergeSelectedSheets.includes(sheet.sheet_name)
                                                 ? 'bg-primary/10 border-primary/40 text-primary'
                                                 : 'border-slate-200 text-slate-500 hover:border-primary/30'
-                                        }`}>
+                                            }`}>
                                             <input
                                                 type="checkbox"
                                                 className="accent-primary size-3.5"
@@ -1513,11 +1610,10 @@ export default function Clean() {
                                         <button
                                             key={opt.value}
                                             onClick={() => setMergeType(opt.value as any)}
-                                            className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-center transition-all ${
-                                                mergeType === opt.value
+                                            className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-center transition-all ${mergeType === opt.value
                                                     ? 'bg-primary/10 border-primary/40 text-primary'
                                                     : 'border-slate-200 text-slate-500 hover:border-primary/30'
-                                            }`}
+                                                }`}
                                         >
                                             <span className="material-symbols-outlined text-xl">{opt.icon}</span>
                                             <span className="text-xs font-bold">{opt.label}</span>
@@ -1609,7 +1705,7 @@ export default function Clean() {
                         </div>
                         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-3">
                             <div className="size-10 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center text-green-500"><span className="material-symbols-outlined">numbers</span></div>
-                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Numeric</p><p className="text-lg font-bold">{stats.column_types ? Object.values(stats.column_types as Record<string, string>).filter((t: string) => ['int64', 'float64', 'int32', 'float32'].includes(t)).length : 0}</p></div>
+                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">Numeric</p><p className="text-lg font-bold">{stats.column_types ? Object.values(stats.column_types as Record<string, string>).filter((t: string) => /int|float/i.test(t)).length : 0}</p></div>
                         </div>
                         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-3">
                             <div className="size-10 bg-pink-50 dark:bg-pink-900/20 rounded-lg flex items-center justify-center text-pink-500"><span className="material-symbols-outlined">label</span></div>
@@ -1627,7 +1723,7 @@ export default function Clean() {
                         <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-48 overflow-y-auto custom-scrollbar">
                             {stats.column_types && Object.entries(stats.column_types as Record<string, string>).map(([col, dtype]) => {
                                 const nullCount = stats.null_counts?.[col] ?? 0
-                                const isNumeric = ['int64', 'float64', 'int32', 'float32'].includes(dtype)
+                                const isNumeric = /int|float/i.test(dtype)
                                 return (
                                     <div key={col} className="flex items-center justify-between px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/30">
                                         <div className="flex items-center gap-2">
@@ -1746,7 +1842,7 @@ export default function Clean() {
                     <p className="text-xs text-slate-400 mb-4">Click "Apply Operation" to normalize all numeric columns using StandardScaler. Values will be transformed to have mean=0, std=1.</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {stats.column_types && Object.entries(stats.column_types as Record<string, string>)
-                            .filter(([, dtype]) => ['int64', 'float64', 'int32', 'float32'].includes(dtype))
+                            .filter(([, dtype]) => /int|float/i.test(dtype))
                             .map(([col, dtype]) => {
                                 const colStats = stats.numeric_stats?.[col]
                                 const range = colStats ? colStats.max - colStats.min : 0
@@ -1785,7 +1881,7 @@ export default function Clean() {
                                     </div>
                                 )
                             })}
-                        {stats.column_types && Object.entries(stats.column_types as Record<string, string>).filter(([, dtype]) => ['int64', 'float64', 'int32', 'float32'].includes(dtype)).length === 0 && (
+                        {stats.column_types && Object.entries(stats.column_types as Record<string, string>).filter(([, dtype]) => /int|float/i.test(dtype)).length === 0 && (
                             <div className="col-span-3 text-center py-8 text-slate-400">
                                 <span className="material-symbols-outlined text-4xl mb-2 block">check_circle</span>
                                 <p className="text-sm font-medium">No numeric columns found to normalize.</p>
@@ -1834,7 +1930,32 @@ export default function Clean() {
                                 <h4 className="font-bold text-slate-800">Correlation Heatmap</h4>
                                 <p className="text-xs text-slate-500 mt-1">View the correlation matrix for all numeric metrics in your dataset.</p>
                             </button>
-                            <button onClick={() => setVizMode('full')} className="p-5 border border-slate-200 hover:border-primary/50 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl text-left transition-all hover:shadow-lg group lg:col-span-2">
+                            <button onClick={() => { setVizMode('lineplot'); setLineX(''); setLineY(''); }} className="p-5 border border-slate-200 hover:border-primary/50 bg-white rounded-xl text-left transition-all hover:shadow-lg group">
+                                <span className="material-symbols-outlined text-4xl text-rose-500 mb-3 group-hover:scale-110 transition-transform">show_chart</span>
+                                <h4 className="font-bold text-slate-800">Trend Line Plot</h4>
+                                <p className="text-xs text-slate-500 mt-1">Select numeric or datetime columns to plot trends across sequential data.</p>
+                            </button>
+                            <button onClick={() => { setVizMode('boxplot'); setBoxCol(''); }} className="p-5 border border-slate-200 hover:border-primary/50 bg-white rounded-xl text-left transition-all hover:shadow-lg group">
+                                <span className="material-symbols-outlined text-4xl text-emerald-500 mb-3 group-hover:scale-110 transition-transform">candlestick_chart</span>
+                                <h4 className="font-bold text-slate-800">Box Plot</h4>
+                                <p className="text-xs text-slate-500 mt-1">Analyze the 5-number summary and extreme outliers for any single variable.</p>
+                            </button>
+                            <button onClick={() => { setVizMode('histogram'); setHistCol(''); setHistogramData(null); }} className="p-5 border border-slate-200 hover:border-primary/50 bg-white rounded-xl text-left transition-all hover:shadow-lg group">
+                                <span className="material-symbols-outlined text-4xl text-orange-500 mb-3 group-hover:scale-110 transition-transform">bar_chart_4_bars</span>
+                                <h4 className="font-bold text-slate-800">Histogram</h4>
+                                <p className="text-xs text-slate-500 mt-1">View the frequency distribution of any numeric column using customizable bins.</p>
+                            </button>
+                            <button onClick={() => { setVizMode('countplot'); setCountCol(''); setCountPlotData(null); }} className="p-5 border border-slate-200 hover:border-primary/50 bg-white rounded-xl text-left transition-all hover:shadow-lg group">
+                                <span className="material-symbols-outlined text-4xl text-fuchsia-500 mb-3 group-hover:scale-110 transition-transform">sort</span>
+                                <h4 className="font-bold text-slate-800">Count Plot</h4>
+                                <p className="text-xs text-slate-500 mt-1">Count the occurrences of each category in any column — great for categorical data.</p>
+                            </button>
+                            <button onClick={() => { setVizMode('barplot'); setBarXCol(''); setBarYCol(''); setBarAgg('mean'); setBarPlotData(null); }} className="p-5 border border-slate-200 hover:border-primary/50 bg-white rounded-xl text-left transition-all hover:shadow-lg group">
+                                <span className="material-symbols-outlined text-4xl text-amber-500 mb-3 group-hover:scale-110 transition-transform">stacked_bar_chart</span>
+                                <h4 className="font-bold text-slate-800">Bar Plot</h4>
+                                <p className="text-xs text-slate-500 mt-1">Compare aggregated values (mean, sum, max…) across categories in your data.</p>
+                            </button>
+                            <button onClick={() => setVizMode('full')} className="p-5 border border-slate-200 hover:border-primary/50 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl text-left transition-all hover:shadow-lg group md:col-span-2 lg:col-span-3">
                                 <span className="material-symbols-outlined text-4xl text-slate-600 mb-3 group-hover:scale-110 transition-transform">auto_awesome_mosaic</span>
                                 <h4 className="font-bold text-slate-800">Generate Full Report</h4>
                                 <p className="text-xs text-slate-500 mt-1">Execute the heavy calculation render mode. Pulls up every single chart automatically.</p>
@@ -1857,54 +1978,54 @@ export default function Clean() {
                                             <thead>
                                                 <tr>
                                                     <th className="p-1.5 text-right"></th>
-                                                {correlationData.columns.map(col => (
-                                                    <th key={col} className="p-1.5 font-medium text-slate-500 min-w-[60px] text-center" style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)', maxHeight: '100px' }}>{col.length > 12 ? col.slice(0, 12) + '...' : col}</th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {correlationData.matrix.map((row, i) => (
-                                                <tr key={i}>
-                                                    <td className="p-1.5 text-right font-medium text-slate-500 pr-2 whitespace-nowrap">{correlationData.columns[i].length > 15 ? correlationData.columns[i].slice(0, 15) + '...' : correlationData.columns[i]}</td>
-                                                    {row.map((val, j) => {
-                                                        const absVal = Math.abs(val)
-                                                        const r = val > 0 ? 59 : 239
-                                                        const g = val > 0 ? 130 : 68
-                                                        const b = val > 0 ? 246 : 68
-                                                        return (
-                                                            <td key={j} className="p-0">
-                                                                <div className="w-14 h-10 flex items-center justify-center text-[10px] font-mono font-bold rounded-sm mx-0.5 my-0.5" style={{ backgroundColor: `rgba(${r}, ${g}, ${b}, ${absVal * 0.8})`, color: absVal > 0.5 ? 'white' : 'inherit' }} title={`${correlationData.columns[i]} vs ${correlationData.columns[j]}: ${val.toFixed(3)}`}>
-                                                                    {val.toFixed(2)}
-                                                                </div>
-                                                            </td>
-                                                        )
-                                                    })}
+                                                    {correlationData.columns.map(col => (
+                                                        <th key={col} className="p-1.5 font-medium text-slate-500 min-w-[60px] text-center" style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)', maxHeight: '100px' }}>{col.length > 12 ? col.slice(0, 12) + '...' : col}</th>
+                                                    ))}
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div className="flex items-center justify-center gap-2 mt-3">
-                                    <span className="text-[10px] text-slate-400">-1.0</span>
-                                    <div className="flex h-3 w-48 rounded-full overflow-hidden">
-                                        <div className="flex-1 bg-red-400"></div>
-                                        <div className="flex-1 bg-red-200"></div>
-                                        <div className="flex-1 bg-slate-100"></div>
-                                        <div className="flex-1 bg-blue-200"></div>
-                                        <div className="flex-1 bg-blue-400"></div>
+                                            </thead>
+                                            <tbody>
+                                                {correlationData.matrix.map((row, i) => (
+                                                    <tr key={i}>
+                                                        <td className="p-1.5 text-right font-medium text-slate-500 pr-2 whitespace-nowrap">{correlationData.columns[i].length > 15 ? correlationData.columns[i].slice(0, 15) + '...' : correlationData.columns[i]}</td>
+                                                        {row.map((val, j) => {
+                                                            const absVal = Math.abs(val)
+                                                            const r = val > 0 ? 59 : 239
+                                                            const g = val > 0 ? 130 : 68
+                                                            const b = val > 0 ? 246 : 68
+                                                            return (
+                                                                <td key={j} className="p-0">
+                                                                    <div className="w-14 h-10 flex items-center justify-center text-[10px] font-mono font-bold rounded-sm mx-0.5 my-0.5" style={{ backgroundColor: `rgba(${r}, ${g}, ${b}, ${absVal * 0.8})`, color: absVal > 0.5 ? 'white' : 'inherit' }} title={`${correlationData.columns[i]} vs ${correlationData.columns[j]}: ${val.toFixed(3)}`}>
+                                                                        {val.toFixed(2)}
+                                                                    </div>
+                                                                </td>
+                                                            )
+                                                        })}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                    <span className="text-[10px] text-slate-400">+1.0</span>
+                                    <div className="flex items-center justify-center gap-2 mt-3">
+                                        <span className="text-[10px] text-slate-400">-1.0</span>
+                                        <div className="flex h-3 w-48 rounded-full overflow-hidden">
+                                            <div className="flex-1 bg-red-400"></div>
+                                            <div className="flex-1 bg-red-200"></div>
+                                            <div className="flex-1 bg-slate-100"></div>
+                                            <div className="flex-1 bg-blue-200"></div>
+                                            <div className="flex-1 bg-blue-400"></div>
+                                        </div>
+                                        <span className="text-[10px] text-slate-400">+1.0</span>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-center py-8 text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
+                                    <span className="material-symbols-outlined text-4xl mb-2 block text-purple-300">grid_off</span>
+                                    <p className="text-sm font-medium">No numeric columns available</p>
+                                    <p className="text-xs mt-1">Correlation heatmap requires at least 2 numeric columns (int64, float64).</p>
+                                    <p className="text-xs mt-0.5 text-slate-300">Your dataset has only categorical/object columns.</p>
                                 </div>
-                            </>
-                        ) : (
-                            <div className="text-center py-8 text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
-                                <span className="material-symbols-outlined text-4xl mb-2 block text-purple-300">grid_off</span>
-                                <p className="text-sm font-medium">No numeric columns available</p>
-                                <p className="text-xs mt-1">Correlation heatmap requires at least 2 numeric columns (int64, float64).</p>
-                                <p className="text-xs mt-0.5 text-slate-300">Your dataset has only categorical/object columns.</p>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
                     )}
 
                     {/* Scatter Plots */}
@@ -1935,216 +2056,574 @@ export default function Clean() {
                                     </div>
                                 </div>
                             )}
-                        {scatterData && scatterData.pairs.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {scatterData.pairs.filter(pair => vizMode === 'full' || (pair.x_col === scatterX && pair.y_col === scatterY) || (pair.x_col === scatterY && pair.y_col === scatterX)).map((pair, idx) => {
-                                    const xMin = Math.min(...pair.x)
-                                    const xMax = Math.max(...pair.x)
-                                    const yMin = Math.min(...pair.y)
-                                    const yMax = Math.max(...pair.y)
-                                    const xRange = xMax - xMin || 1
-                                    const yRange = yMax - yMin || 1
-                                    return (
-                                        <div key={idx} className={`${vizMode === 'scatter' ? 'md:col-span-2 max-w-2xl mx-auto w-full' : ''} border border-slate-100 dark:border-slate-800 rounded-lg p-4 bg-white shadow-sm`}>
-                                            <div className="text-xs text-slate-600 mb-3 font-bold text-center">{pair.x_col} vs {pair.y_col}</div>
-                                            <div className="relative bg-slate-50 dark:bg-slate-800/50 rounded" style={{ height: vizMode === 'scatter' ? '300px' : '160px' }}>
-                                                <div className="absolute inset-0 border-l border-b border-slate-200 dark:border-slate-700 rounded"></div>
-                                                <div className="absolute left-1/4 top-0 bottom-0 border-l border-dashed border-slate-200 dark:border-slate-700"></div>
-                                                <div className="absolute left-1/2 top-0 bottom-0 border-l border-dashed border-slate-200 dark:border-slate-700"></div>
-                                                <div className="absolute left-3/4 top-0 bottom-0 border-l border-dashed border-slate-200 dark:border-slate-700"></div>
-                                                <div className="absolute left-0 right-0 top-1/4 border-t border-dashed border-slate-200 dark:border-slate-700"></div>
-                                                <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-slate-200 dark:border-slate-700"></div>
-                                                <div className="absolute left-0 right-0 top-3/4 border-t border-dashed border-slate-200 dark:border-slate-700"></div>
-                                                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                                                    {pair.x.map((xVal, i) => {
-                                                        const cx = ((xVal - xMin) / xRange) * 92 + 4
-                                                        const cy = 96 - ((pair.y[i] - yMin) / yRange) * 92
-                                                        return <circle key={i} cx={cx} cy={cy} r={vizMode === 'scatter' ? "1.5" : "1.2"} className="fill-teal-500 opacity-60"><title>{pair.x_col}: {xVal.toFixed(2)}, {pair.y_col}: {pair.y[i].toFixed(2)}</title></circle>
-                                                    })}
-                                                </svg>
+                            {scatterData && scatterData.pairs.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {scatterData.pairs.filter(pair => vizMode === 'full' || (pair.x_col === scatterX && pair.y_col === scatterY) || (pair.x_col === scatterY && pair.y_col === scatterX)).map((pair, idx) => {
+                                        const xMin = Math.min(...pair.x)
+                                        const xMax = Math.max(...pair.x)
+                                        const yMin = Math.min(...pair.y)
+                                        const yMax = Math.max(...pair.y)
+                                        const xRange = xMax - xMin || 1
+                                        const yRange = yMax - yMin || 1
+                                        return (
+                                            <div key={idx} className={`${vizMode === 'scatter' ? 'md:col-span-2 max-w-2xl mx-auto w-full' : ''} border border-slate-100 dark:border-slate-800 rounded-lg p-4 bg-white shadow-sm`}>
+                                                <div className="text-xs text-slate-600 mb-3 font-bold text-center">{pair.x_col} vs {pair.y_col}</div>
+                                                <div className="relative bg-slate-50 dark:bg-slate-800/50 rounded" style={{ height: vizMode === 'scatter' ? '300px' : '160px' }}>
+                                                    <div className="absolute inset-0 border-l border-b border-slate-200 dark:border-slate-700 rounded"></div>
+                                                    <div className="absolute left-1/4 top-0 bottom-0 border-l border-dashed border-slate-200 dark:border-slate-700"></div>
+                                                    <div className="absolute left-1/2 top-0 bottom-0 border-l border-dashed border-slate-200 dark:border-slate-700"></div>
+                                                    <div className="absolute left-3/4 top-0 bottom-0 border-l border-dashed border-slate-200 dark:border-slate-700"></div>
+                                                    <div className="absolute left-0 right-0 top-1/4 border-t border-dashed border-slate-200 dark:border-slate-700"></div>
+                                                    <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-slate-200 dark:border-slate-700"></div>
+                                                    <div className="absolute left-0 right-0 top-3/4 border-t border-dashed border-slate-200 dark:border-slate-700"></div>
+                                                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                                        {pair.x.map((xVal, i) => {
+                                                            const cx = ((xVal - xMin) / xRange) * 92 + 4
+                                                            const cy = 96 - ((pair.y[i] - yMin) / yRange) * 92
+                                                            return <circle key={i} cx={cx} cy={cy} r={vizMode === 'scatter' ? "1.5" : "1.2"} className="fill-teal-500 opacity-60"><title>{pair.x_col}: {xVal.toFixed(2)}, {pair.y_col}: {pair.y[i].toFixed(2)}</title></circle>
+                                                        })}
+                                                    </svg>
+                                                </div>
+                                                <div className="flex justify-between text-[10px] text-slate-400 mt-2 px-1">
+                                                    <span>{xMin.toFixed(1)}</span>
+                                                    <span className="font-bold text-slate-500">{pair.x_col}</span>
+                                                    <span>{xMax.toFixed(1)}</span>
+                                                </div>
                                             </div>
-                                            <div className="flex justify-between text-[10px] text-slate-400 mt-2 px-1">
-                                                <span>{xMin.toFixed(1)}</span>
-                                                <span className="font-bold text-slate-500">{pair.x_col}</span>
-                                                <span>{xMax.toFixed(1)}</span>
-                                            </div>
+                                        )
+                                    })}
+                                    {vizMode === 'scatter' && scatterX && scatterY && scatterData.pairs.filter(pair => (pair.x_col === scatterX && pair.y_col === scatterY) || (pair.x_col === scatterY && pair.y_col === scatterX)).length === 0 && (
+                                        <div className="md:col-span-2 text-center py-8 text-slate-400">
+                                            Found no intersecting chart points for these columns limits.
                                         </div>
-                                    )
-                                })}
-                                {vizMode === 'scatter' && scatterX && scatterY && scatterData.pairs.filter(pair => (pair.x_col === scatterX && pair.y_col === scatterY) || (pair.x_col === scatterY && pair.y_col === scatterX)).length === 0 && (
-                                    <div className="md:col-span-2 text-center py-8 text-slate-400">
-                                        Found no intersecting chart points for these columns limits.
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
+                                    <span className="material-symbols-outlined text-4xl mb-2 block text-teal-300">scatter_plot</span>
+                                    <p className="text-sm font-medium">No numeric columns available</p>
+                                    <p className="text-xs mt-1">Scatter plots require at least 2 numeric columns (int64, float64).</p>
+                                    <p className="text-xs mt-0.5 text-slate-300">Your dataset has only categorical/object columns.</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Trend Line Plot */}
+                    {(vizMode === 'lineplot' || vizMode === 'full') && (
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300">
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="material-symbols-outlined text-rose-500">show_chart</span>
+                                <h3 className="text-sm font-bold">Trend Line Plot</h3>
+                            </div>
+
+                            {vizMode === 'lineplot' && scatterData && (
+                                <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg flex items-end gap-4">
+                                    <div className="flex-1">
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">X Axis Column</label>
+                                        <select value={lineX} onChange={e => setLineX(e.target.value)} className="w-full text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-primary">
+                                            <option value="">Select X trend...</option>
+                                            {scatterData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
                                     </div>
-                                )}
+                                    <div className="flex-1">
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Y Axis Column</label>
+                                        <select value={lineY} onChange={e => setLineY(e.target.value)} className="w-full text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-primary">
+                                            <option value="">Select numeric Y...</option>
+                                            {scatterData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+
+                            {linePlotData && linePlotData.data.length > 0 ? (() => {
+                                const xVals = linePlotData.data.map(r => Number(r[linePlotData.x_col])).filter(n => !isNaN(n))
+                                const yVals = linePlotData.data.map(r => Number(r[linePlotData.y_col])).filter(n => !isNaN(n))
+                                const xMin = Math.min(...xVals)
+                                const xMax = Math.max(...xVals)
+                                const yMin = Math.min(...yVals)
+                                const yMax = Math.max(...yVals)
+                                const xRange = xMax - xMin || 1
+                                const yRange = yMax - yMin || 1
+
+                                const points = linePlotData.data.map((row) => {
+                                    const cx = ((Number(row[linePlotData.x_col]) - xMin) / xRange) * 92 + 4
+                                    const cy = 96 - ((Number(row[linePlotData.y_col]) - yMin) / yRange) * 92
+                                    return `${cx},${cy}`
+                                }).join(' ')
+
+                                return (
+                                    <div className="max-w-2xl mx-auto w-full border border-slate-100 dark:border-slate-800 rounded-lg p-4 bg-white shadow-sm">
+                                        <div className="text-xs text-slate-600 mb-3 font-bold text-center">{linePlotData.x_col} vs {linePlotData.y_col} (sampled trend)</div>
+                                        <div className="relative bg-slate-50 dark:bg-slate-800/50 rounded" style={{ height: '300px' }}>
+                                            <div className="absolute inset-0 border-l border-b border-slate-200 dark:border-slate-700 rounded"></div>
+                                            <div className="absolute left-0 right-0 top-1/4 border-t border-dashed border-slate-200 dark:border-slate-700"></div>
+                                            <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-slate-200 dark:border-slate-700"></div>
+                                            <div className="absolute left-0 right-0 top-3/4 border-t border-dashed border-slate-200 dark:border-slate-700"></div>
+                                            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                                <polyline points={points} fill="none" stroke="#f43f5e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        </div>
+                                        <div className="flex justify-between text-[10px] text-slate-400 mt-2 px-1">
+                                            <span>{xMin.toFixed(1)}</span>
+                                            <span className="font-bold text-slate-500">{linePlotData.x_col}</span>
+                                            <span>{xMax.toFixed(1)}</span>
+                                        </div>
+                                    </div>
+                                )
+                            })() : vizMode === 'lineplot' && lineX && lineY ? (
+                                <div className="text-center py-8 text-slate-400">Loading trend line...</div>
+                            ) : null}
+
+                            {vizMode === 'lineplot' && (!lineX || !lineY) && (
+                                <div className="text-center py-8 text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
+                                    <span className="material-symbols-outlined text-4xl mb-2 block text-rose-300">show_chart</span>
+                                    <p className="text-sm font-medium">Select columns to plot</p>
+                                    <p className="text-xs mt-1">Choose X and Y axes above to generate a trend view.</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Box Plot */}
+                    {(vizMode === 'boxplot' || vizMode === 'full') && (
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300">
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="material-symbols-outlined text-emerald-500">candlestick_chart</span>
+                                <h3 className="text-sm font-bold">Box & Whisker Plot</h3>
                             </div>
-                        ) : (
-                            <div className="text-center py-8 text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
-                                <span className="material-symbols-outlined text-4xl mb-2 block text-teal-300">scatter_plot</span>
-                                <p className="text-sm font-medium">No numeric columns available</p>
-                                <p className="text-xs mt-1">Scatter plots require at least 2 numeric columns (int64, float64).</p>
-                                <p className="text-xs mt-0.5 text-slate-300">Your dataset has only categorical/object columns.</p>
+
+                            {vizMode === 'boxplot' && scatterData && (
+                                <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg max-w-sm">
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Numeric Column</label>
+                                    <select value={boxCol} onChange={e => setBoxCol(e.target.value)} className="w-full text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-primary">
+                                        <option value="">Select column to analyze...</option>
+                                        {scatterData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                            )}
+
+                            {boxPlotData ? (() => {
+                                const allVals = [boxPlotData.min, boxPlotData.max, ...boxPlotData.outliers]
+                                const globalMin = Math.min(...allVals)
+                                const globalMax = Math.max(...allVals)
+                                const range = globalMax - globalMin || 1
+
+                                const getP = (v: number) => ((v - globalMin) / range) * 100
+
+                                return (
+                                    <div className="max-w-2xl mx-auto w-full border border-slate-100 dark:border-slate-800 rounded-lg p-6 bg-white shadow-sm mt-4">
+                                        <div className="text-xs text-slate-600 mb-6 font-bold text-center">{boxPlotData.column} (5-Number Summary)</div>
+                                        <div className="relative h-24 mb-6" style={{ margin: '0 20px' }}>
+                                            {/* Center Line (Whisker body) */}
+                                            <div className="absolute border-t-2 border-emerald-500/50" style={{ left: `${getP(boxPlotData.min)}%`, right: `${100 - getP(boxPlotData.max)}%`, top: '50%' }}></div>
+
+                                            {/* Min Bound */}
+                                            <div className="absolute w-0.5 h-8 bg-emerald-500" style={{ left: `${getP(boxPlotData.min)}%`, top: 'calc(50% - 16px)' }}></div>
+
+                                            {/* Max Bound */}
+                                            <div className="absolute w-0.5 h-8 bg-emerald-500" style={{ left: `${getP(boxPlotData.max)}%`, top: 'calc(50% - 16px)' }}></div>
+
+                                            {/* Box (IQR) */}
+                                            <div className="absolute h-12 bg-emerald-100 border-2 border-emerald-500 rounded-sm" style={{ left: `${getP(boxPlotData.q1)}%`, width: `${getP(boxPlotData.q3) - getP(boxPlotData.q1)}%`, top: 'calc(50% - 24px)' }}></div>
+
+                                            {/* Median Line */}
+                                            <div className="absolute w-0.5 h-12 bg-emerald-700" style={{ left: `${getP(boxPlotData.median)}%`, top: 'calc(50% - 24px)' }}></div>
+
+                                            {/* Outliers */}
+                                            {boxPlotData.outliers.map((o, i) => (
+                                                <div key={i} className="absolute w-1.5 h-1.5 bg-rose-400 rounded-full" style={{ left: `${getP(o)}%`, top: 'calc(50% - 3px)', marginLeft: '-3px' }} title={`Outlier: ${o}`}></div>
+                                            ))}
+
+                                            {/* Labels */}
+                                            <div className="absolute text-[9px] text-slate-400 -bottom-6 translate-x-[-50%]" style={{ left: `${getP(boxPlotData.min)}%` }}>{boxPlotData.min.toFixed(1)}</div>
+                                            <div className="absolute text-[9px] font-bold text-emerald-700 -top-6 translate-x-[-50%]" style={{ left: `${getP(boxPlotData.median)}%` }}>Med: {boxPlotData.median.toFixed(1)}</div>
+                                            <div className="absolute text-[9px] text-slate-400 -bottom-6 translate-x-[-50%]" style={{ left: `${getP(boxPlotData.max)}%` }}>{boxPlotData.max.toFixed(1)}</div>
+                                        </div>
+                                    </div>
+                                )
+                            })() : vizMode === 'boxplot' && boxCol ? (
+                                <div className="text-center py-8 text-slate-400">Calculating percentiles...</div>
+                            ) : null}
+
+                            {vizMode === 'boxplot' && (!boxCol) && (
+                                <div className="text-center py-8 text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
+                                    <span className="material-symbols-outlined text-4xl mb-2 block text-emerald-300">candlestick_chart</span>
+                                    <p className="text-sm font-medium">Select a column</p>
+                                    <p className="text-xs mt-1">Choose a numeric column to analyze its quartile boundaries.</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Histogram */}
+                    {vizMode === 'histogram' && (
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300">
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="material-symbols-outlined text-orange-500">bar_chart_4_bars</span>
+                                <h3 className="text-sm font-bold">Histogram</h3>
+                                <span className="text-xs text-slate-400 ml-auto">Frequency distribution</span>
                             </div>
-                        )}
-                    </div>
+                            {stats?.column_types && (
+                                <div className="mb-5 p-4 bg-slate-50 border border-slate-200 rounded-lg max-w-sm">
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Numeric Column</label>
+                                    <select value={histCol} onChange={e => setHistCol(e.target.value)} className="w-full text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-primary">
+                                        <option value="">Select column...</option>
+                                        {Object.entries(stats.column_types as Record<string, string>)
+                                            .filter(([, dtype]) => /int|float/i.test(dtype))
+                                            .map(([c]) => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            {histError && (
+                                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-red-400 text-sm">error</span>
+                                    <p className="text-xs text-red-600 font-medium">{histError}</p>
+                                </div>
+                            )}
+                            {histogramData && histogramData.counts.length > 0 ? (() => {
+                                const maxCount = Math.max(...histogramData.counts)
+                                return (
+                                    <div className="max-w-2xl mx-auto w-full">
+                                        <div className="flex items-end gap-0.5 h-48 bg-slate-50 rounded-lg p-3">
+                                            {histogramData.counts.map((count, i) => {
+                                                const heightPct = maxCount > 0 ? (count / maxCount) * 100 : 0
+                                                const binStart = histogramData.bins[i]?.toFixed(1)
+                                                const binEnd = histogramData.bins[i + 1]?.toFixed(1)
+                                                return (
+                                                    <div key={i} className="flex-1 flex flex-col items-center justify-end group/bar" title={`${binStart}–${binEnd}: ${count} rows`}>
+                                                        <div
+                                                            className="w-full bg-gradient-to-t from-orange-500 to-orange-300 rounded-t-sm transition-all duration-300 group-hover/bar:from-orange-600 group-hover/bar:to-orange-400 relative"
+                                                            style={{ height: `${Math.max(heightPct, count > 0 ? 2 : 0)}%` }}
+                                                        >
+                                                            <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[8px] px-1 py-0.5 rounded opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap z-10">{count}</div>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                        <div className="flex justify-between text-[9px] text-slate-400 mt-1 px-3">
+                                            <span>{histogramData.bins[0]?.toFixed(1)}</span>
+                                            <span className="font-bold text-slate-500">{histogramData.column}</span>
+                                            <span>{histogramData.bins[histogramData.bins.length - 1]?.toFixed(1)}</span>
+                                        </div>
+                                        <div className="mt-3 flex gap-4 text-[10px] text-slate-400 px-3">
+                                            <span>Total Bins: <strong>{histogramData.counts.length}</strong></span>
+                                            <span>Max Freq: <strong>{maxCount.toLocaleString()}</strong></span>
+                                            <span>Total Rows (non-null): <strong>{histogramData.counts.reduce((a, b) => a + b, 0).toLocaleString()}</strong></span>
+                                        </div>
+                                    </div>
+                                )
+                            })() : !histError && histCol ? (
+                                <div className="text-center py-8 text-slate-400">Computing histogram...</div>
+                            ) : !histError && (
+                                <div className="text-center py-8 text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
+                                    <span className="material-symbols-outlined text-4xl mb-2 block text-orange-300">bar_chart_4_bars</span>
+                                    <p className="text-sm font-medium">Select a numeric column</p>
+                                    <p className="text-xs mt-1">Choose any numeric column to view its frequency distribution.</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Count Plot */}
+                    {vizMode === 'countplot' && (
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300">
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="material-symbols-outlined text-fuchsia-500">sort</span>
+                                <h3 className="text-sm font-bold">Count Plot</h3>
+                                <span className="text-xs text-slate-400 ml-auto">Category frequency (Top 25)</span>
+                            </div>
+                            {columns.length > 0 && (
+                                <div className="mb-5 p-4 bg-slate-50 border border-slate-200 rounded-lg max-w-sm">
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Column</label>
+                                    <select value={countCol} onChange={e => setCountCol(e.target.value)} className="w-full text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-primary">
+                                        <option value="">Select column...</option>
+                                        {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            {countError && (
+                                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-red-400 text-sm">error</span>
+                                    <p className="text-xs text-red-600 font-medium">{countError}</p>
+                                </div>
+                            )}
+                            {countPlotData && countPlotData.labels.length > 0 ? (() => {
+                                const maxCount = Math.max(...countPlotData.counts)
+                                return (
+                                    <div className="space-y-1.5 max-w-2xl mx-auto">
+                                        {countPlotData.labels.map((label, i) => {
+                                            const count = countPlotData.counts[i]
+                                            const widthPct = maxCount > 0 ? (count / maxCount) * 100 : 0
+                                            return (
+                                                <div key={label} className="flex items-center gap-3 group/bar">
+                                                    <span className="text-xs text-slate-500 w-28 text-right truncate flex-shrink-0 font-medium" title={label}>{label}</span>
+                                                    <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-6 overflow-hidden relative">
+                                                        <div
+                                                            className="h-full bg-gradient-to-r from-fuchsia-500 to-purple-400 rounded-full transition-all duration-500"
+                                                            style={{ width: `${Math.max(widthPct, 3)}%` }}
+                                                        ></div>
+                                                    </div>
+                                                    <span className="text-xs font-bold font-mono w-12 text-right flex-shrink-0 text-slate-700">{count.toLocaleString()}</span>
+                                                </div>
+                                            )
+                                        })}
+                                        <div className="text-[10px] text-slate-400 mt-2">Showing top {countPlotData.labels.length} categories for <strong>{countPlotData.column}</strong></div>
+                                    </div>
+                                )
+                            })() : !countError && countCol ? (
+                                <div className="text-center py-8 text-slate-400">Counting categories...</div>
+                            ) : !countError && (
+                                <div className="text-center py-8 text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
+                                    <span className="material-symbols-outlined text-4xl mb-2 block text-fuchsia-300">sort</span>
+                                    <p className="text-sm font-medium">Select a column</p>
+                                    <p className="text-xs mt-1">Works best with categorical (object/string) columns.</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Bar Plot */}
+                    {vizMode === 'barplot' && (
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300">
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="material-symbols-outlined text-amber-500">stacked_bar_chart</span>
+                                <h3 className="text-sm font-bold">Bar Plot</h3>
+                                <span className="text-xs text-slate-400 ml-auto">Aggregated category comparison</span>
+                            </div>
+                            {columns.length > 0 && (
+                                <div className="mb-5 p-4 bg-slate-50 border border-slate-200 rounded-lg flex flex-wrap items-end gap-4">
+                                    <div className="flex-1 min-w-[140px]">
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">X Axis (Category)</label>
+                                        <select value={barXCol} onChange={e => setBarXCol(e.target.value)} className="w-full text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-primary">
+                                            <option value="">Select category col...</option>
+                                            {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="flex-1 min-w-[140px]">
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Y Axis (Numeric)</label>
+                                        <select value={barYCol} onChange={e => setBarYCol(e.target.value)} className="w-full text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-primary">
+                                            <option value="">Select numeric col...</option>
+                                            {stats?.column_types && Object.entries(stats.column_types as Record<string, string>)
+                                                .filter(([, dtype]) => /int|float/i.test(dtype))
+                                                .map(([c]) => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="min-w-[110px]">
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Aggregation</label>
+                                        <select value={barAgg} onChange={e => setBarAgg(e.target.value)} className="w-full text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-primary">
+                                            <option value="mean">Mean (Avg)</option>
+                                            <option value="sum">Sum (Total)</option>
+                                            <option value="median">Median</option>
+                                            <option value="max">Max</option>
+                                            <option value="min">Min</option>
+                                            <option value="count">Count</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+                            {barError && (
+                                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-red-400 text-sm">error</span>
+                                    <p className="text-xs text-red-600 font-medium">{barError}</p>
+                                </div>
+                            )}
+                            {barPlotData && barPlotData.labels.length > 0 ? (() => {
+                                const maxVal = Math.max(...barPlotData.values)
+                                return (
+                                    <div className="max-w-2xl mx-auto w-full">
+                                        <div className="flex items-end gap-1 h-56 bg-slate-50 rounded-lg p-3">
+                                            {barPlotData.labels.map((label, i) => {
+                                                const val = barPlotData.values[i]
+                                                const heightPct = maxVal > 0 ? (val / maxVal) * 100 : 0
+                                                return (
+                                                    <div key={label} className="flex-1 flex flex-col items-center justify-end group/bar" title={`${label}: ${val.toFixed(2)}`}>
+                                                        <div className="text-[7px] text-slate-400 mb-0.5 opacity-0 group-hover/bar:opacity-100 transition-opacity font-mono">{val.toFixed(1)}</div>
+                                                        <div
+                                                            className="w-full bg-gradient-to-t from-amber-500 to-amber-300 rounded-t-sm transition-all duration-300 group-hover/bar:from-amber-600 group-hover/bar:to-amber-400"
+                                                            style={{ height: `${Math.max(heightPct, 2)}%` }}
+                                                        ></div>
+                                                        <div className="text-[7px] text-slate-400 mt-1 w-full text-center truncate px-0.5" title={label}>{label.length > 8 ? label.slice(0, 7) + '…' : label}</div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                        <div className="flex justify-between text-[10px] text-slate-400 mt-1 px-1">
+                                            <span className="font-bold text-slate-500">{barPlotData.x_col}</span>
+                                            <span className="text-indigo-500 font-semibold">{barPlotData.agg.charAt(0).toUpperCase() + barPlotData.agg.slice(1)} of {barPlotData.y_col}</span>
+                                        </div>
+                                    </div>
+                                )
+                            })() : !barError && barXCol && barYCol ? (
+                                <div className="text-center py-8 text-slate-400">Aggregating data...</div>
+                            ) : !barError && (
+                                <div className="text-center py-8 text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
+                                    <span className="material-symbols-outlined text-4xl mb-2 block text-amber-300">stacked_bar_chart</span>
+                                    <p className="text-sm font-medium">Configure your Bar Plot</p>
+                                    <p className="text-xs mt-1">Select a category column, a numeric column, and an aggregation method above.</p>
+                                </div>
+                            )}
+                        </div>
                     )}
 
                     {/* All Column Distributions */}
                     {(vizMode === 'full' || vizMode === 'distribution') && (
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300">
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="material-symbols-outlined text-indigo-500">bar_chart</span>
-                            <h3 className="text-sm font-bold">Value Distributions</h3>
-                            {distLoading && <span className="text-xs text-slate-400 ml-auto animate-pulse">Loading distributions...</span>}
-                        </div>
-                        {vizMode === 'distribution' && Object.keys(allDistributions).length > 0 && (
-                            <div className="mb-6">
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Select Columns to Visualize</label>
-                                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                                    {Object.keys(allDistributions).map(col => (
-                                        <label key={col} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all text-xs font-medium ${selectedDistributions.includes(col) ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'border-slate-200 hover:bg-slate-50 text-slate-600'}`}>
-                                            <input type="checkbox" className="accent-indigo-500 size-3" checked={selectedDistributions.includes(col)} onChange={() => setSelectedDistributions(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col])} />
-                                            {col}
-                                        </label>
-                                    ))}
-                                </div>
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300">
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="material-symbols-outlined text-indigo-500">bar_chart</span>
+                                <h3 className="text-sm font-bold">Value Distributions</h3>
+                                {distLoading && <span className="text-xs text-slate-400 ml-auto animate-pulse">Loading distributions...</span>}
                             </div>
-                        )}
-                        {Object.keys(allDistributions).length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {Object.entries(allDistributions).filter(([col]) => vizMode === 'full' || selectedDistributions.includes(col)).map(([col, dist]: [string, any]) => (
-                                    <div key={col} className="border border-slate-100 dark:border-slate-800 rounded-lg p-3 shadow-sm">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <h4 className="text-xs font-bold">{col}</h4>
-                                            <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-slate-500">{dist.type}</span>
-                                        </div>
-                                        {dist.type === 'numeric' ? (
-                                            <div>
-                                                <div className="flex items-end gap-px h-24">
-                                                    {(dist.counts as number[]).map((count: number, i: number) => {
+                            {vizMode === 'distribution' && Object.keys(allDistributions).length > 0 && (
+                                <div className="mb-6">
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Select Columns to Visualize</label>
+                                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                                        {Object.keys(allDistributions).map(col => (
+                                            <label key={col} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all text-xs font-medium ${selectedDistributions.includes(col) ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'border-slate-200 hover:bg-slate-50 text-slate-600'}`}>
+                                                <input type="checkbox" className="accent-indigo-500 size-3" checked={selectedDistributions.includes(col)} onChange={() => setSelectedDistributions(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col])} />
+                                                {col}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {Object.keys(allDistributions).length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {Object.entries(allDistributions).filter(([col]) => vizMode === 'full' || selectedDistributions.includes(col)).map(([col, dist]: [string, any]) => (
+                                        <div key={col} className="border border-slate-100 dark:border-slate-800 rounded-lg p-3 shadow-sm">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h4 className="text-xs font-bold">{col}</h4>
+                                                <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-slate-500">{dist.type}</span>
+                                            </div>
+                                            {dist.type === 'numeric' ? (
+                                                <div>
+                                                    <div className="flex items-end gap-px h-24">
+                                                        {(dist.counts as number[]).map((count: number, i: number) => {
+                                                            const maxCount = Math.max(...(dist.counts as number[]))
+                                                            const heightPct = maxCount > 0 ? (count / maxCount) * 100 : 0
+                                                            return (
+                                                                <div key={i} className="flex-1 flex flex-col items-center justify-end" title={`${dist.bins?.[i]?.toFixed(1)}: ${count}`}>
+                                                                    <div className="w-full bg-gradient-to-t from-blue-500 to-blue-300 rounded-t-sm" style={{ height: `${heightPct}%`, minHeight: count > 0 ? '2px' : '0' }}></div>
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                    <div className="flex justify-between text-[9px] text-slate-400 mt-1">
+                                                        <span>{dist.bins?.[0]?.toFixed(1)}</span>
+                                                        <span>{dist.bin_edges?.[dist.bin_edges.length - 1]?.toFixed(1)}</span>
+                                                    </div>
+                                                    {dist.stats && (
+                                                        <div className="flex gap-3 mt-2 text-[10px]">
+                                                            <span className="text-slate-400">Mean: <strong className="text-primary">{dist.stats.mean.toFixed(2)}</strong></span>
+                                                            <span className="text-slate-400">Std: <strong>{dist.stats.std.toFixed(2)}</strong></span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-1">
+                                                    {(dist.labels as string[]).slice(0, 6).map((label: string, i: number) => {
+                                                        const count = dist.counts[i] as number
                                                         const maxCount = Math.max(...(dist.counts as number[]))
-                                                        const heightPct = maxCount > 0 ? (count / maxCount) * 100 : 0
+                                                        const widthPct = maxCount > 0 ? (count / maxCount) * 100 : 0
                                                         return (
-                                                            <div key={i} className="flex-1 flex flex-col items-center justify-end" title={`${dist.bins?.[i]?.toFixed(1)}: ${count}`}>
-                                                                <div className="w-full bg-gradient-to-t from-blue-500 to-blue-300 rounded-t-sm" style={{ height: `${heightPct}%`, minHeight: count > 0 ? '2px' : '0' }}></div>
+                                                            <div key={label} className="flex items-center gap-1.5">
+                                                                <span className="text-[10px] text-slate-500 w-20 text-right truncate" title={label}>{label}</span>
+                                                                <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-3 overflow-hidden">
+                                                                    <div className="h-full bg-gradient-to-r from-pink-400 to-purple-400 rounded-full" style={{ width: `${Math.max(widthPct, 3)}%` }}></div>
+                                                                </div>
+                                                                <span className="text-[9px] font-mono font-bold w-8 text-right">{count}</span>
                                                             </div>
                                                         )
                                                     })}
+                                                    {(dist.labels as string[]).length > 6 && (
+                                                        <span className="text-[10px] text-slate-400">+{(dist.labels as string[]).length - 6} more</span>
+                                                    )}
+                                                    <div className="text-[10px] text-slate-400 mt-1">{dist.unique_count} unique / {dist.total} total</div>
                                                 </div>
-                                                <div className="flex justify-between text-[9px] text-slate-400 mt-1">
-                                                    <span>{dist.bins?.[0]?.toFixed(1)}</span>
-                                                    <span>{dist.bin_edges?.[dist.bin_edges.length - 1]?.toFixed(1)}</span>
-                                                </div>
-                                                {dist.stats && (
-                                                    <div className="flex gap-3 mt-2 text-[10px]">
-                                                        <span className="text-slate-400">Mean: <strong className="text-primary">{dist.stats.mean.toFixed(2)}</strong></span>
-                                                        <span className="text-slate-400">Std: <strong>{dist.stats.std.toFixed(2)}</strong></span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-1">
-                                                {(dist.labels as string[]).slice(0, 6).map((label: string, i: number) => {
-                                                    const count = dist.counts[i] as number
-                                                    const maxCount = Math.max(...(dist.counts as number[]))
-                                                    const widthPct = maxCount > 0 ? (count / maxCount) * 100 : 0
-                                                    return (
-                                                        <div key={label} className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] text-slate-500 w-20 text-right truncate" title={label}>{label}</span>
-                                                            <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-3 overflow-hidden">
-                                                                <div className="h-full bg-gradient-to-r from-pink-400 to-purple-400 rounded-full" style={{ width: `${Math.max(widthPct, 3)}%` }}></div>
-                                                            </div>
-                                                            <span className="text-[9px] font-mono font-bold w-8 text-right">{count}</span>
-                                                        </div>
-                                                    )
-                                                })}
-                                                {(dist.labels as string[]).length > 6 && (
-                                                    <span className="text-[10px] text-slate-400">+{(dist.labels as string[]).length - 6} more</span>
-                                                )}
-                                                <div className="text-[10px] text-slate-400 mt-1">{dist.unique_count} unique / {dist.total} total</div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            !distLoading && (
-                                <div className="text-center py-6 text-slate-400">
-                                    <span className="material-symbols-outlined text-3xl mb-2 block">hourglass_empty</span>
-                                    <p className="text-sm">Loading distribution data...</p>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
-                            )
-                        )}
-                        {vizMode === 'distribution' && selectedDistributions.length === 0 && (
-                            <div className="text-center py-6 text-slate-400 bg-slate-50 rounded-lg">
-                                Select features above to view their visual distributions.
-                            </div>
-                        )}
-                    </div>
+                            ) : (
+                                !distLoading && (
+                                    <div className="text-center py-6 text-slate-400">
+                                        <span className="material-symbols-outlined text-3xl mb-2 block">hourglass_empty</span>
+                                        <p className="text-sm">Loading distribution data...</p>
+                                    </div>
+                                )
+                            )}
+                            {vizMode === 'distribution' && selectedDistributions.length === 0 && (
+                                <div className="text-center py-6 text-slate-400 bg-slate-50 rounded-lg">
+                                    Select features above to view their visual distributions.
+                                </div>
+                            )}
+                        </div>
                     )}
 
                     {/* Null Distribution */}
                     {(vizMode === 'full' || vizMode === 'overview') && (
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300 delay-75">
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="material-symbols-outlined text-amber-500">warning</span>
-                            <h3 className="text-sm font-bold">Null Distribution by Column</h3>
-                        </div>
-                        <div className="space-y-2">
-                            {stats.null_counts && Object.entries(stats.null_counts as Record<string, number>)
-                                .sort(([, a], [, b]) => (b as number) - (a as number))
-                                .map(([col, count]) => {
-                                    const pct = stats.total_rows > 0 ? ((count as number) / stats.total_rows) * 100 : 0
-                                    return (
-                                        <div key={col} className="flex items-center gap-3">
-                                            <span className="text-xs text-slate-500 w-28 text-right truncate font-medium" title={col}>{col}</span>
-                                            <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-4 overflow-hidden">
-                                                <div className={`h-full rounded-full transition-all ${(count as number) > 0 ? 'bg-gradient-to-r from-amber-400 to-red-400' : 'bg-green-400'}`} style={{ width: `${Math.max(pct, (count as number) > 0 ? 2 : 100)}%` }}></div>
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300 delay-75">
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="material-symbols-outlined text-amber-500">warning</span>
+                                <h3 className="text-sm font-bold">Null Distribution by Column</h3>
+                            </div>
+                            <div className="space-y-2">
+                                {stats.null_counts && Object.entries(stats.null_counts as Record<string, number>)
+                                    .sort(([, a], [, b]) => (b as number) - (a as number))
+                                    .map(([col, count]) => {
+                                        const pct = stats.total_rows > 0 ? ((count as number) / stats.total_rows) * 100 : 0
+                                        return (
+                                            <div key={col} className="flex items-center gap-3">
+                                                <span className="text-xs text-slate-500 w-28 text-right truncate font-medium" title={col}>{col}</span>
+                                                <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-4 overflow-hidden">
+                                                    <div className={`h-full rounded-full transition-all ${(count as number) > 0 ? 'bg-gradient-to-r from-amber-400 to-red-400' : 'bg-green-400'}`} style={{ width: `${Math.max(pct, (count as number) > 0 ? 2 : 100)}%` }}></div>
+                                                </div>
+                                                <span className="text-xs font-mono font-bold w-20 text-right">{count as number} <span className="text-slate-400">({pct.toFixed(1)}%)</span></span>
                                             </div>
-                                            <span className="text-xs font-mono font-bold w-20 text-right">{count as number} <span className="text-slate-400">({pct.toFixed(1)}%)</span></span>
-                                        </div>
-                                    )
-                                })}
+                                        )
+                                    })}
+                            </div>
                         </div>
-                    </div>
                     )}
 
                     {/* Column Type Distribution */}
                     {(vizMode === 'full' || vizMode === 'overview') && (
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300 delay-150">
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="material-symbols-outlined text-blue-500">donut_large</span>
-                            <h3 className="text-sm font-bold">Column Type Distribution</h3>
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300 delay-150">
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="material-symbols-outlined text-blue-500">donut_large</span>
+                                <h3 className="text-sm font-bold">Column Type Distribution</h3>
+                            </div>
+                            {(() => {
+                                const types = stats.column_types ? Object.values(stats.column_types as Record<string, string>) : []
+                                const counts: Record<string, number> = {}
+                                types.forEach((t: string) => { counts[t] = (counts[t] || 0) + 1 })
+                                const total = types.length
+                                const colors: Record<string, string> = { 'int64': 'bg-green-400', 'float64': 'bg-emerald-400', 'object': 'bg-pink-400', 'bool': 'bg-purple-400', 'datetime64[ns]': 'bg-blue-400', 'category': 'bg-orange-400', 'int32': 'bg-green-300', 'float32': 'bg-emerald-300' }
+                                return (
+                                    <>
+                                        <div className="flex rounded-full h-6 overflow-hidden mb-4">
+                                            {Object.entries(counts).map(([dtype, count]) => (
+                                                <div key={dtype} className={`${colors[dtype] || 'bg-slate-300'} transition-all`} style={{ width: `${(count / total) * 100}%` }} title={`${dtype}: ${count}`}></div>
+                                            ))}
+                                        </div>
+                                        <div className="flex flex-wrap gap-3">
+                                            {Object.entries(counts).map(([dtype, count]) => (
+                                                <div key={dtype} className="flex items-center gap-1.5">
+                                                    <div className={`w-3 h-3 rounded ${colors[dtype] || 'bg-slate-300'}`}></div>
+                                                    <span className="text-xs font-medium">{dtype}</span>
+                                                    <span className="text-xs text-slate-400">({count})</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )
+                            })()}
                         </div>
-                        {(() => {
-                            const types = stats.column_types ? Object.values(stats.column_types as Record<string, string>) : []
-                            const counts: Record<string, number> = {}
-                            types.forEach((t: string) => { counts[t] = (counts[t] || 0) + 1 })
-                            const total = types.length
-                            const colors: Record<string, string> = { 'int64': 'bg-green-400', 'float64': 'bg-emerald-400', 'object': 'bg-pink-400', 'bool': 'bg-purple-400', 'datetime64[ns]': 'bg-blue-400', 'category': 'bg-orange-400', 'int32': 'bg-green-300', 'float32': 'bg-emerald-300' }
-                            return (
-                                <>
-                                    <div className="flex rounded-full h-6 overflow-hidden mb-4">
-                                        {Object.entries(counts).map(([dtype, count]) => (
-                                            <div key={dtype} className={`${colors[dtype] || 'bg-slate-300'} transition-all`} style={{ width: `${(count / total) * 100}%` }} title={`${dtype}: ${count}`}></div>
-                                        ))}
-                                    </div>
-                                    <div className="flex flex-wrap gap-3">
-                                        {Object.entries(counts).map(([dtype, count]) => (
-                                            <div key={dtype} className="flex items-center gap-1.5">
-                                                <div className={`w-3 h-3 rounded ${colors[dtype] || 'bg-slate-300'}`}></div>
-                                                <span className="text-xs font-medium">{dtype}</span>
-                                                <span className="text-xs text-slate-400">({count})</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </>
-                            )
-                        })()}
-                    </div>
                     )}
 
                     {/* Numeric Statistics */}
-                    {(vizMode === 'full' || vizMode === 'overview') && stats.column_types && Object.entries(stats.column_types as Record<string, string>).some(([, dtype]) => ['int64', 'float64', 'int32', 'float32'].includes(dtype)) && (
+                    {(vizMode === 'full' || vizMode === 'overview') && stats.column_types && Object.entries(stats.column_types as Record<string, string>).some(([, dtype]) => /int|float/i.test(dtype)) && (
                         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 animate-in fade-in zoom-in duration-300 delay-200">
                             <div className="flex items-center gap-2 mb-4">
                                 <span className="material-symbols-outlined text-green-500">analytics</span>

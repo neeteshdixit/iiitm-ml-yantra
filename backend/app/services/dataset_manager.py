@@ -22,6 +22,12 @@ class DatasetManager:
         self.sheet_groups: Dict[str, Dict[str, str]] = {}
         # Reverse map: session_id -> (parent_id, sheet_name)
         self.sheet_parents: Dict[str, Tuple[str, str]] = {}
+        # Filename tracking for notebook generation
+        self.filenames: Dict[str, str] = {}
+
+    def get_filename(self, session_id: str) -> str:
+        """Get the original filename for a session"""
+        return self.filenames.get(session_id, 'dataset.csv')
     
     def create_session(self, df: pd.DataFrame) -> str:
         """Create a new session with a dataset"""

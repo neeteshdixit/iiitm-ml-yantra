@@ -106,3 +106,31 @@ async def recommend_algorithms(request: RecommendAlgorithmsRequest):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Algorithm recommendation error: {str(e)}")
+
+
+class RecommendVisualizationRequest(BaseModel):
+    session_id: str
+    plot_type: str
+    selected_columns: List[str]
+
+
+@router.post("/recommend-visualization")
+async def recommend_visualization(request: RecommendVisualizationRequest):
+    """Get visualization guidance from AI"""
+    try:
+        dataset_info = context_builder.build_dataset_context(request.session_id)
+        
+        # Extract available columns from the dataset context
+        column_types = dataset_info.get("column_types", {})
+        available_columns = list(column_types.keys())
+        
+        response = await gemini_service.recommend_visualization(
+            plot_type=request.plot_type,
+            columns=available_columns,
+            selected_columns=request.selected_columns
+        )
+        
+        return {"response": response}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Visualization recommendation error: {str(e)}")

@@ -6,6 +6,8 @@ import asyncio
 from app.routes.data import router as data_router
 from app.routes.train import router as train_router
 from app.routes.ai_assistant import router as ai_router
+from app.routes.autopilot import router as autopilot_router
+from app.routes.reports import router as reports_router
 from app.services.dataset_manager import dataset_manager
 
 async def cache_cleanup_task():
@@ -46,6 +48,8 @@ app.add_middleware(
 app.include_router(data_router, tags=["Data Operations"])
 app.include_router(train_router, prefix="/train", tags=["Model Training"])
 app.include_router(ai_router, prefix="/ai", tags=["AI Assistant"])
+app.include_router(autopilot_router, prefix="/autopilot", tags=["AutoPilot"])
+app.include_router(reports_router, prefix="/reports", tags=["Report Studio"])
 
 @app.get("/")
 async def root():
@@ -62,3 +66,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    # Trigger hot-reload

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import AppHeader from '../../AppHeader'
 
 export interface MainLayoutProps {
@@ -6,6 +6,8 @@ export interface MainLayoutProps {
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+    const location = useLocation()
+    const prefix = location.pathname.startsWith('/non-tech') ? '/non-tech' : '/tech'
     return (
         <div className="min-h-screen flex flex-col">
             <AppHeader />
@@ -29,9 +31,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                         <div className="grid grid-cols-2 gap-10 sm:grid-cols-3">
                             <div className="flex flex-col gap-4">
                                 <h5 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">Product</h5>
-                                <Link to="/clean" className="text-sm text-slate-500 hover:text-primary">Clean</Link>
-                                <Link to="/train" className="text-sm text-slate-500 hover:text-primary">Train</Link>
-                                <Link to="/results" className="text-sm text-slate-500 hover:text-primary">Results</Link>
+                                <Link to={`${prefix}/clean`} className="text-sm text-slate-500 hover:text-primary">Clean</Link>
+                                <Link to={`${prefix}/train`} className="text-sm text-slate-500 hover:text-primary">Train</Link>
+                                <Link to={`${prefix}/results`} className="text-sm text-slate-500 hover:text-primary">Results</Link>
                             </div>
                             <div className="flex flex-col gap-4">
                                 <h5 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">Company</h5>
