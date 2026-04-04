@@ -12,7 +12,6 @@ const navItems = [
     { path: '/clean', label: 'Dataset', icon: 'table_chart' },
     { path: '/train', label: 'Model', icon: 'model_training' },
     { path: '/results', label: 'Results', icon: 'leaderboard' },
-    // { path: '/learn', label: 'Learn', icon: 'school' },
 ]
 
 export default function AppHeader({ onExport, rightSlot }: AppHeaderProps) {
