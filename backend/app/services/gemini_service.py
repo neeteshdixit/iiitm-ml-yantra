@@ -213,5 +213,137 @@ Ensure your advice represents industry best practices."""
         return await self.chat(prompt)
 
 
+    async def recommend_visualization(
+        self,
+        plot_type: str,
+        columns: List[str],
+        selected_columns: List[str]
+    ) -> str:
+        """Guide the user in configuring a specific plot"""
+        
+        prompt = f"""**ROLE**: You are an expert Data Visualization assistant inside a machine learning platform.
+        
+**SYSTEM CONTEXT**:
+- The user selected a plot type from a dropdown.
+- Based on the selected plot, suggest required inputs and validate selections.
+- Be concise, clear, and interactive.
+
+**AVAILABLE PLOT TYPES**:
+- Histogram
+- Line Plot
+- Count Plot
+- Box Plot
+- Scatter Plot
+- Bar Plot
+- Correlation Heatmap
+
+**INPUT**:
+- Selected Plot Type: {plot_type}
+- Available Columns: {', '.join(columns)}
+- Selected Columns (if any): {', '.join(selected_columns) if selected_columns else 'None'}
+
+**TASK**:
+1. Explain briefly what the selected plot shows (1 line only).
+2. Define REQUIRED INPUTS based on plot type.
+3. Validate user selection: Check if selected columns match requirements. If incorrect, clearly explain what is missing.
+4. Suggest improvements: Recommend best columns (based on type if possible). Warn if wrong data type selected.
+
+**OUTPUT FORMAT**:
+- 📊 Plot Description
+- ✅ Required Inputs
+- ⚠️ Validation Message (if needed)
+- 💡 Suggestions
+
+**STYLE**:
+- Keep it short and practical
+- Avoid technical jargon
+- Guide like a mentor"""
+        
+        return await self.chat(prompt)
+
+
+    async def generate_report_insights(self, dataset_info: Dict[str, Any],
+                                        template_type: str,
+                                        training_info: Optional[Dict] = None) -> str:
+        """Generate AI insights for a report based on dataset context."""
+        
+        training_section = ""
+        if training_info:
+            training_section = f"""
+**TRAINING RESULTS**:
+- Best Model: {training_info.get('best_model_name', 'N/A')}
+- Metrics: {training_info.get('best_metrics', {})}
+- Models Trained: {len(training_info.get('models', []))}
+"""
+
+        prompt = f"""**TASK**: Generate concise, expert-level analytical insights for a {template_type} report.
+
+**DATASET CONTEXT**:
+- Filename: {dataset_info.get('filename', 'Unknown')}
+- Shape: {dataset_info.get('rows', 0):,} rows × {dataset_info.get('columns', 0)} columns
+- Null Values: {dataset_info.get('null_counts', {})}
+- Column Types: {dataset_info.get('column_types', {})}
+- Duplicates: {dataset_info.get('duplicate_rows', 0)}
+{training_section}
+
+**OUTPUT**: Write 4-6 concise, data-driven insights. Each should be 1-2 sentences.
+Focus on:
+- Data quality observations
+- Statistical patterns
+- Potential issues or opportunities
+- Model performance interpretation (if training data available)
+
+Use professional, analytical language suitable for a formal report. No markdown headers — just bullet points."""
+
+        return await self.chat(prompt)
+
+    async def suggest_template(self, user_description: str,
+                                dataset_info: Optional[Dict] = None) -> str:
+        """Suggest a custom sequence of report building blocks based on user's description."""
+
+        ds_context = ""
+        if dataset_info:
+            ds_context = f"""
+**DATASET**: {dataset_info.get('filename', 'Unknown')} — {dataset_info.get('rows', 0)} rows × {dataset_info.get('columns', 0)} columns
+"""
+
+        prompt = f"""**TASK**: You are an Expert Report Architect. The user wants to generate a report and has described what they need. Construct a highly customized, logical layout for them using strictly the building blocks provided below.
+
+**AVAILABLE BUILDING BLOCKS** (use exactly these names):
+cover, dataset_overview, kpi_cards, data_quality_score, null_analysis, 
+distribution_summary, correlation_analysis, outlier_analysis, cleaning_log, 
+model_comparison, feature_importance, key_insights, recommendations, 
+abstract, introduction, methodology, results_discussion, conclusion, references
+{ds_context}
+**USER'S REQUEST**: "{user_description}"
+
+**OUTPUT FORMAT** (respond exactly in this block format):
+SECTIONS: [comma-separated list of building blocks in the optimal order]
+CUSTOM_TITLE: [a great, professional title for their report]
+TIPS: [1-2 sentences explaining why this bespoke layout is best for their goal]"""
+
+        return await self.chat(prompt)
+
+    async def refine_report(self, current_report_summary: str,
+                             user_feedback: str) -> str:
+        """Provide suggestions for refining a report based on user feedback."""
+
+        prompt = f"""**TASK**: The user has generated a report and wants to improve it. Provide specific suggestions.
+
+**CURRENT REPORT SUMMARY**:
+{current_report_summary}
+
+**USER'S FEEDBACK**: "{user_feedback}"
+
+**OUTPUT**: Provide 3-5 specific, actionable suggestions for improving the report. Include:
+- Which sections to modify and how
+- What to add or remove
+- How to make the report more effective for their use case
+
+Be concise and practical."""
+
+        return await self.chat(prompt)
+
+
 # Global instance
 gemini_service = GeminiService()

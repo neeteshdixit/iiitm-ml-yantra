@@ -3,6 +3,12 @@ import { Toaster } from 'react-hot-toast'
 import AppRoutes from './routes.tsx'
 import { BubbleCursor } from './components/atoms/BubbleCursor'
 
+// ── Clear all stored sessions on every fresh page load / refresh ──
+;(() => {
+    const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith('ml_yantra_'))
+    keysToRemove.forEach(k => localStorage.removeItem(k))
+})()
+
 function App() {
     return (
         <div className="relative flex min-h-screen flex-col overflow-x-hidden">

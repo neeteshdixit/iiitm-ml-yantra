@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import AppHeader from '../components/AppHeader'
 import toast from 'react-hot-toast'
 import apiClient from '../services/api'
@@ -15,8 +16,11 @@ type ValidationIssue = {
 
 export default function Train() {
     const navigate = useNavigate()
+    const location = useLocation()
     const [sessionId, setSessionId] = useState<string | null>(null)
     const [currentStep, setCurrentStep] = useState<TrainingStep>('config')
+    const [isUploading, setIsUploading] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Config state
     const [columns, setColumns] = useState<string[]>([])
@@ -49,11 +53,7 @@ export default function Train() {
 
     useEffect(() => {
         const storedSessionId = localStorage.getItem('ml_yantra_session_id')
-        if (!storedSessionId) {
-            toast.error('Please upload and clean your dataset first')
-            navigate('/clean')
-            return
-        }
+        if (!storedSessionId) return
         setSessionId(storedSessionId)
 
         // Load columns
@@ -67,6 +67,31 @@ export default function Train() {
             }
         }).catch(console.error)
     }, [navigate])
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        setIsUploading(true)
+        try {
+            const res = await apiClient.uploadFile(file)
+            setSessionId(res.session_id)
+            localStorage.setItem('ml_yantra_session_id', res.session_id)
+            toast.success(`Uploaded ${file.name}`)
+            
+            // Auto-load columns
+            const cols = res.column_names || []
+            setColumns(cols)
+            if (res.column_types) setColumnTypes(res.column_types)
+            if (cols.length > 0) {
+                setSelectedFeatures(cols.slice(0, -1))
+                setTargetColumn(cols[cols.length - 1])
+            }
+        } catch (err: any) {
+            toast.error(err.message || 'Upload failed')
+        } finally {
+            setIsUploading(false)
+        }
+    }
 
     const handleStartTraining = async () => {
         if (!sessionId || !targetColumn || selectedFeatures.length === 0) {
@@ -243,7 +268,48 @@ export default function Train() {
     const bestModel = trainingResults?.models?.find((m: any) => m.isBest) || trainingResults?.models?.[0]
     const metrics = bestModel?.metrics || {}
 
-    if (!sessionId) return null
+    if (!sessionId) {
+        return (
+            <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden bg-slate-50">
+                <AppHeader />
+                <main className="flex-1 flex flex-col items-center justify-center p-8">
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-2xl">
+                        <div className="bg-white rounded-3xl p-12 text-center border shadow-xl shadow-slate-200/50">
+                            <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                <span className="material-symbols-outlined text-4xl">model_training</span>
+                            </div>
+                            <h2 className="text-3xl font-bold text-slate-800 mb-4">Ready to Train Models?</h2>
+                            <p className="text-slate-500 mb-8 max-w-lg mx-auto">
+                                If your dataset is already clean, you can skip the Data Cleaning step and train models immediately.
+                            </p>
+                            
+                            <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFileUpload} className="hidden" />
+                            
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                                <button 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploading}
+                                    className="flex items-center justify-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition-all font-sans"
+                                >
+                                    {isUploading ? (
+                                        <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Uploading...</>
+                                    ) : (
+                                        <><span className="material-symbols-outlined">upload_file</span> Upload Clean Dataset</>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => navigate('/tech/clean')}
+                                    className="flex items-center justify-center gap-2 px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 border-2 border-slate-200 font-bold rounded-xl transition-all font-sans"
+                                >
+                                    <span className="material-symbols-outlined">cleaning_services</span> My data needs cleaning
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                </main>
+            </div>
+        )
+    }
 
     return (
         <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
@@ -291,7 +357,7 @@ export default function Train() {
                             Import Dataset
                         </button>
                         <button
-                            onClick={() => navigate('/clean')}
+                            onClick={() => navigate(location.pathname.startsWith('/non-tech') ? '/non-tech/autopilot' : '/tech/clean')}
                             className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-sm transition-all"
                         >
                             <span className="material-symbols-outlined text-lg">arrow_back</span>

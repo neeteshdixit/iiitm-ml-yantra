@@ -11,13 +11,13 @@ export default function Home() {
                         ML Yantra
                     </div>
                     <div className="hidden md:flex items-center gap-10 font-headline font-bold tracking-tight text-sm uppercase">
-                        <Link to="/" className="text-[#ab3505] border-b-2 border-[#ab3505] pb-1 hover:scale-[1.02] transition-transform">Home</Link>
-                        <Link to="/clean" className="text-zinc-600 hover:text-[#ab3505] transition-colors hover:scale-[1.02]">Clean</Link>
-                        <Link to="/train" className="text-zinc-600 hover:text-[#ab3505] transition-colors hover:scale-[1.02]">Train</Link>
-                        <Link to="/results" className="text-zinc-600 hover:text-[#ab3505] transition-colors hover:scale-[1.02]">Results</Link>
+                        <Link to="/tech" className="text-[#ab3505] border-b-2 border-[#ab3505] pb-1 hover:scale-[1.02] transition-transform">Home</Link>
+                        <Link to="/tech/clean" className="text-zinc-600 hover:text-[#ab3505] transition-colors hover:scale-[1.02]">Clean</Link>
+                        <Link to="/tech/train" className="text-zinc-600 hover:text-[#ab3505] transition-colors hover:scale-[1.02]">Train</Link>
+                        <Link to="/tech/results" className="text-zinc-600 hover:text-[#ab3505] transition-colors hover:scale-[1.02]">Results</Link>
                     </div>
                     <div className="flex items-center gap-4">
-                        <Link to="/clean" className="ml-yantra-gradient text-white px-6 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider hover:scale-[1.02] active:scale-95 transition-all">
+                        <Link to="/tech/clean" className="ml-yantra-gradient text-white px-6 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider hover:scale-[1.02] active:scale-95 transition-all">
                             Get Started
                         </Link>
                     </div>
@@ -60,7 +60,7 @@ export default function Home() {
                         </p>
 
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-8">
-                            <Link to="/clean" className="ml-yantra-gradient text-white px-12 py-6 rounded-xl font-bold text-xl shadow-[0_32px_64px_-16px_rgba(171,53,5,0.3)] hover:shadow-[0_40px_80px_-20px_rgba(171,53,5,0.4)] hover:-translate-y-1 active:scale-95 transition-all">
+                            <Link to="/tech/clean" className="ml-yantra-gradient text-white px-12 py-6 rounded-xl font-bold text-xl shadow-[0_32px_64px_-16px_rgba(171,53,5,0.3)] hover:shadow-[0_40px_80px_-20px_rgba(171,53,5,0.4)] hover:-translate-y-1 active:scale-95 transition-all">
                                 Start Your First Build
                             </Link>
                         </div>
@@ -123,7 +123,7 @@ export default function Home() {
                                     </div>
                                     <div className="h-2 w-full bg-[#dbdad7]/30 rounded-full"></div>
                                 </div>
-                                <Link to="/clean" className="inline-flex items-center gap-2 text-[#ab3505] font-bold text-sm uppercase tracking-widest group-hover:gap-4 transition-all">
+                                <Link to="/tech/clean" className="inline-flex items-center gap-2 text-[#ab3505] font-bold text-sm uppercase tracking-widest group-hover:gap-4 transition-all">
                                     Master the Distillation <span className="material-symbols-outlined text-sm">arrow_forward</span>
                                 </Link>
                             </div>
@@ -140,7 +140,7 @@ export default function Home() {
                                     <div className="w-full h-full border-t-2 border-dashed border-[#9f3a60]/20 absolute top-1/2 -translate-y-1/2"></div>
                                     <div className="w-4 h-4 rounded-full bg-[#9f3a60] shadow-lg z-10 animate-float"></div>
                                 </div>
-                                <Link to="/train" className="inline-flex items-center gap-2 text-[#9f3a60] font-bold text-sm uppercase tracking-widest group-hover:gap-4 transition-all">
+                                <Link to="/tech/train" className="inline-flex items-center gap-2 text-[#9f3a60] font-bold text-sm uppercase tracking-widest group-hover:gap-4 transition-all">
                                     Begin Transmutation <span className="material-symbols-outlined text-sm">arrow_forward</span>
                                 </Link>
                             </div>
@@ -159,11 +159,92 @@ export default function Home() {
                                     </div>
                                     <span className="text-[10px] font-bold text-[#a73923]">80%</span>
                                 </div>
-                                <Link to="/results" className="inline-flex items-center gap-2 text-[#a73923] font-bold text-sm uppercase tracking-widest group-hover:gap-4 transition-all">
+                                <Link to="/tech/results" className="inline-flex items-center gap-2 text-[#a73923] font-bold text-sm uppercase tracking-widest group-hover:gap-4 transition-all">
                                     Explore Results <span className="material-symbols-outlined text-sm">arrow_forward</span>
                                 </Link>
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                {/* ════════════ AutoPilot CTA Section ════════════ */}
+                <section className="py-24 px-8 bg-[#faf9f6]">
+                    <div className="max-w-screen-xl mx-auto">
+                        <div className="relative rounded-[3rem] overflow-hidden bg-gradient-to-br from-[#1a1c1a] via-[#2d1a14] to-[#1a1c1a] p-16 md:p-20 shadow-2xl">
+                            {/* Decorative elements */}
+                            <div className="absolute top-0 right-0 w-80 h-80 bg-[#ab3505]/20 blur-[120px] rounded-full -mr-20 -mt-20"></div>
+                            <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#9f3a60]/15 blur-[100px] rounded-full -ml-16 -mb-16"></div>
+                            <div className="absolute inset-0 grid-overlay opacity-10 pointer-events-none"></div>
+
+                            <div className="relative z-10 flex flex-col lg:flex-row items-center gap-12">
+                                <div className="flex-1">
+                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#ab3505]/20 backdrop-blur-md border border-[#ab3505]/30 text-[#f06637] rounded-full text-[10px] font-bold uppercase tracking-[0.3em] mb-8">
+                                        <span className="material-symbols-outlined text-sm animate-pulse">rocket_launch</span>
+                                        New Feature
+                                    </div>
+                                    <h3 className="font-headline text-4xl md:text-5xl font-bold text-white tracking-tight mb-6 leading-tight">
+                                        AutoPilot Mode<br />
+                                        <span className="text-[#f06637]">One Click. Full Pipeline.</span>
+                                    </h3>
+                                    <p className="text-zinc-400 text-lg leading-relaxed max-w-xl mb-8">
+                                        Upload once and get everything — intelligent data cleaning, comprehensive EDA, model training with smart hyperparameters, and a downloadable Colab notebook to learn from.
+                                    </p>
+                                    <div className="flex flex-wrap gap-4 text-sm text-zinc-300 mb-10">
+                                        <span className="flex items-center gap-2"><span className="material-symbols-outlined text-[#f06637] text-lg">cleaning_services</span>Auto-Clean</span>
+                                        <span className="flex items-center gap-2"><span className="material-symbols-outlined text-[#f06637] text-lg">analytics</span>Full EDA</span>
+                                        <span className="flex items-center gap-2"><span className="material-symbols-outlined text-[#f06637] text-lg">model_training</span>Smart Training</span>
+                                        <span className="flex items-center gap-2"><span className="material-symbols-outlined text-[#f06637] text-lg">download</span>Colab Export</span>
+                                    </div>
+                                    <Link to="/tech/autopilot" className="inline-flex items-center gap-3 bg-[#ab3505] hover:bg-[#c7420a] text-white px-10 py-5 rounded-2xl font-bold text-lg shadow-[0_20px_50px_-12px_rgba(171,53,5,0.4)] hover:shadow-[0_25px_60px_-15px_rgba(171,53,5,0.5)] hover:-translate-y-1 active:scale-95 transition-all">
+                                        <span className="material-symbols-outlined text-2xl">rocket_launch</span>
+                                        Try AutoPilot
+                                    </Link>
+                                </div>
+
+                                {/* Visual card */}
+                                <div className="w-full lg:w-[340px] shrink-0">
+                                    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 space-y-3">
+                                        {[
+                                            { icon: 'check_circle', text: 'Remove 23 duplicate rows', color: 'text-green-400' },
+                                            { icon: 'check_circle', text: "Fill 'Age' with median (28.0)", color: 'text-green-400' },
+                                            { icon: 'check_circle', text: "One-hot encode 'Gender'", color: 'text-green-400' },
+                                            { icon: 'check_circle', text: 'Train Random Forest (200 trees)', color: 'text-green-400' },
+                                            { icon: 'check_circle', text: 'Train XGBoost (lr=0.05)', color: 'text-green-400' },
+                                            { icon: 'emoji_events', text: '🏆 Best: Random Forest — 94.2%', color: 'text-[#f06637]' },
+                                        ].map((step, i) => (
+                                            <div key={i} className="flex items-center gap-3 text-sm" style={{ opacity: 1 - i * 0.08 }}>
+                                                <span className={`material-symbols-outlined text-lg ${step.color}`}>{step.icon}</span>
+                                                <span className="text-white/80">{step.text}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ════════════ Report Studio CTA ════════════ */}
+                <section className="py-28 px-8 bg-gradient-to-br from-[#faf9f6] to-[#f5ede8]">
+                    <div className="max-w-screen-xl mx-auto text-center">
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#ab3505]/10 text-[#ab3505] rounded-full text-xs font-bold uppercase tracking-widest mb-8">
+                            <span className="material-symbols-outlined text-sm">summarize</span>
+                            Report Studio
+                        </div>
+                        <h2 className="font-headline text-5xl font-bold tracking-tight mb-6">AI-Powered Reports in Seconds</h2>
+                        <p className="text-[#59413a] text-lg max-w-2xl mx-auto mb-10 leading-relaxed">
+                            Generate professional PDF, Markdown, or PowerPoint reports from your data analysis. Choose from 6 templates or describe your own format — our AI handles the rest.
+                        </p>
+                        <div className="flex flex-wrap justify-center gap-4 mb-10 text-sm text-[#59413a]">
+                            <span className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm"><span className="material-symbols-outlined text-[#ab3505] text-lg">picture_as_pdf</span>PDF Export</span>
+                            <span className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm"><span className="material-symbols-outlined text-[#ab3505] text-lg">slideshow</span>PPTX Slides</span>
+                            <span className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm"><span className="material-symbols-outlined text-[#ab3505] text-lg">school</span>PBL / Academic</span>
+                            <span className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm"><span className="material-symbols-outlined text-[#ab3505] text-lg">dashboard</span>Power BI Style</span>
+                        </div>
+                        <Link to="/tech/reports" className="inline-flex items-center gap-3 bg-[#ab3505] hover:bg-[#c7420a] text-white px-10 py-5 rounded-2xl font-bold text-lg shadow-[0_20px_50px_-12px_rgba(171,53,5,0.4)] hover:shadow-[0_25px_60px_-15px_rgba(171,53,5,0.5)] hover:-translate-y-1 active:scale-95 transition-all">
+                            <span className="material-symbols-outlined text-2xl">auto_awesome</span>
+                            Create a Report
+                        </Link>
                     </div>
                 </section>
 
@@ -225,7 +306,7 @@ export default function Home() {
                                     Ready to Begin Your <br />Experiment?
                                 </h2>
                                 <p className="text-white/90 text-2xl max-w-2xl mx-auto mb-16 font-light">Join thousands of data alchemists who have moved past code to focus on pure insight.</p>
-                                <Link to="/clean" className="inline-block bg-white text-[#ab3505] px-16 py-8 rounded-2xl font-bold text-2xl shadow-2xl hover:scale-[1.05] hover:shadow-[0_20px_60px_-10px_rgba(0,0,0,0.2)] transition-all active:scale-95">
+                                <Link to="/tech/clean" className="inline-block bg-white text-[#ab3505] px-16 py-8 rounded-2xl font-bold text-2xl shadow-2xl hover:scale-[1.05] hover:shadow-[0_20px_60px_-10px_rgba(0,0,0,0.2)] transition-all active:scale-95">
                                     Start Cleaning Data Free
                                 </Link>
                             </div>
