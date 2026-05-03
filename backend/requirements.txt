@@ -8,3 +8,4 @@ xgboost
 google-generativeai
 openpyxl
 python-dotenv
+matplotlib
